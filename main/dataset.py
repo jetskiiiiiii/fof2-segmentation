@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import cv2 as cv
 from torch.utils.data import Dataset
 
@@ -14,22 +15,25 @@ class FITDataset(Dataset):
 
     """
 
-    CLASSES = ["FTI"] # Unsure of what the classes are
-
-    def __init__(self, images_directory, masks_directory, class_values=None, transformation=None):
+    def __init__(self, images_directory, masks_directory, class_name=None, transformation=None):
         self.ids = os.listdir(images_directory)
         self.images_files = [os.path.join(images_directory, images_id) for images_id in self.ids]
         self.masks_files = [os.path.join(masks_directory, images_id) for images_id in self.ids]
+        self.class_name = class_name
 
         self.transformation = transformation
 
     def __getitem__(self, idx):
-        # TODO: Might have to convert to RGB or grayscale
+        # Converting images to RGB and masks to grayscale
         image = cv.imread(self.images_files[idx])
         image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
         
         mask = cv.imread(self.masks_files[idx])
-        mask = cv.cvtColor(mask, cv.IMREAD_GREYSCALE)
+        mask = cv.cvtColor(mask, cv.IMREAD_GRAYSCALE)
+
+        # Extract classes from masks
+        masks = (mask == self.class_name)
+        mask = np.stack(masks, axis=-1).astype("float")
 
         if self.transformation:
             transformed_sample = self.transformation(image=image, mask=mask)
