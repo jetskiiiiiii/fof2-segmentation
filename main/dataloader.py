@@ -1,48 +1,46 @@
 from torch.utils.data import DataLoader
-from dataset import FITDataset
+from dataset import FTIDataset
 from transformation import train_transformation, eval_transformation
 
 # Directories
-image_train_path = "/Users/tprimandaru/Downloads/FoF2-v1/train/train_images"
-mask_train_path = "/Users/tprimandaru/Downloads/FoF2-v1/train/train_images"
+image_train_path = "./dataset/train/train_images"
+mask_train_path = "./dataset/train/train_masks"
 
-image_val_path = "/Users/tprimandaru/Downloads/FoF2-v1/val/val_images"
-mask_val_path = "/Users/tprimandaru/Downloads/FoF2-v1/val/val_images"
+image_val_path = "./dataset/val/val_images"
+mask_val_path = "./dataset/val/val_masks"
 
-image_test_path = "/Users/tprimandaru/Downloads/FoF2-v1/test/test_images"
-mask_test_path = "/Users/tprimandaru/Downloads/FoF2-v1/test/test_images"
+image_test_path = "./dataset/test/test_images"
+mask_test_path = "./dataset/test/test_masks"
 
-CLASSES = "FTI" # From roboflow
+classes = "FTI" # from roboflow
 
-# Datasets
-train_data = FITDataset(
+# datasets
+train_data = FTIDataset(
     image_train_path,
     mask_train_path,
-    class_name=CLASSES,
+    class_name=classes,
     transformation=train_transformation
 )
 
-val_data = FITDataset(
+val_data = FTIDataset(
     image_val_path,
     mask_val_path,
-    class_name=CLASSES,
+    class_name=classes,
     transformation=eval_transformation
 )
 
-test_data = FITDataset(
+test_data = FTIDataset(
     image_test_path,
     mask_test_path,
-    class_name=CLASSES,
+    class_name=classes,
     transformation=eval_transformation
 )
 
-# Hyperparameters
+# hyperparameters
 batch_size = 32
-shuffle = True
-num_workers = 0 
 
-# Dataloaders
-train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)
-val_loader = DataLoader(val_data, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)
-test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)
+# dataloaders
+train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=0)
+val_loader = DataLoader(val_data, batch_size=batch_size, shuffle=False, num_workers=0)
+test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False, num_workers=0)
 

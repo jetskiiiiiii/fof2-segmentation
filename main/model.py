@@ -1,10 +1,10 @@
 import torch
 import lightning as L
 import segmentation_models_pytorch as smp
-from torchmetrics.functional import accuracy
+from torchmetrics.classification import BinaryAccuracy
 
 class FO2Model(L.LightningModule):
-    def __init__(self, architecture, encoder_name, encoder_weights, in_channels, classes):
+    def __init__(self, architecture, encoder_name, encoder_weights, in_channels, classes, device):
         super().__init__()
         self.architecture_name = architecture
         self.model = smp.create_model(
@@ -24,14 +24,16 @@ class FO2Model(L.LightningModule):
 
         self.loss = smp.losses.DiceLoss(mode="binary", from_logits=True)
 
+        self.dev = device
+        self.model.float()
 
     def forward(self, image):
-        image = (image - self.mean) / self.std  # Custom normalization
+        image = (image - self.running_mean) / self.running_std  # Custom normalization
         mask = self.model(image)                # Passing image to model to train
         return mask
 
     def handle_batch(self, batch, stage):
-        # Incoming image must have shape (batch, channels, height, width
+        # Incoming image must have shape (batch, channels, height, width)
         # Incoming mask must have values between 0 and 1
         image, mask = batch
 
@@ -40,7 +42,8 @@ class FO2Model(L.LightningModule):
 
         # During eval stage, also return accuracy
         if stage == "val" or stage == "test":
-            acc = accuracy(logits_mask, mask)
+            acc = BinaryAccuracy().to(self.dev)
+            acc(logits_mask, mask)
             return loss, acc
 
         return loss

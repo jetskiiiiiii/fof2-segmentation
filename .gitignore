@@ -3,3 +3,4 @@
 lightning_logs/
 Unet_best.ckpt
 main/__pycache__/
+
