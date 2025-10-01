@@ -2,9 +2,10 @@ import torch
 from model import FO2Model
 from visualize import visualize
 
-model_path = ""
+unet_model_path = "Unet_best.ckpt"
+test_directory = "./dataset/test/test_images/"
 
-model = FO2Model.load_from_checkpoint(model_path)
+model = FO2Model.load_from_checkpoint(unet_model_path)
 x = 
 model.eval()
 with torch.no_grad():

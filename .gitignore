@@ -1,6 +1,6 @@
 .venv/
 .DS_Store
 lightning_logs/
-Unet_best.ckpt
+*.ckpt
 main/__pycache__/
 
