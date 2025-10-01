@@ -12,27 +12,22 @@ mask_val_path = "./dataset/val/val_masks"
 image_test_path = "./dataset/test/test_images"
 mask_test_path = "./dataset/test/test_masks"
 
-classes = "FTI" # from roboflow
-
 # datasets
 train_data = FTIDataset(
     image_train_path,
     mask_train_path,
-    class_name=classes,
     transformation=train_transformation
 )
 
 val_data = FTIDataset(
     image_val_path,
     mask_val_path,
-    class_name=classes,
     transformation=eval_transformation
 )
 
 test_data = FTIDataset(
     image_test_path,
     mask_test_path,
-    class_name=classes,
     transformation=eval_transformation
 )
 

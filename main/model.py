@@ -24,9 +24,12 @@ class FO2Model(L.LightningModule):
         self.register_buffer("running_mean", torch.tensor(preprocessing_params["mean"]).view(1, 3, 1, 1))
 
         self.loss = smp.losses.DiceLoss(mode="binary", from_logits=True)
-        self.train_acc = BinaryAccuracy()
-        self.val_acc = BinaryAccuracy()
-        self.test_acc = BinaryAccuracy()
+        self.threshold = 0.5    # Threshold to calculate IoU score
+        
+        # For storing loss, IoU info
+        self.training_step_outputs = []
+        self.validation_step_outputs = []
+        self.test_step_outputs = []
 
         self.dev = device
         self.model.float()
@@ -36,49 +39,83 @@ class FO2Model(L.LightningModule):
         mask = self.model(image)                # Passing image to model to train
         return mask
 
-    def handle_batch(self, batch, stage):
+    def handle_batch(self, batch):
         # Incoming image must have shape (batch, channels, height, width)
         # Incoming mask must have values between 0 and 1
         image, mask = batch
 
+        # Must be true to correctly calculate IoU score
+        assert torch.all((mask == 0) | (mask == 1)) # False
+
         logits_mask = self.forward(image)
         loss = self.loss(logits_mask, mask)
+        
+        # Calculate IoU score
+        outputs = logits_mask.sigmoid()
+        outputs = (outputs > self.threshold).float()
+        true_positive, false_positive, false_negative, true_negative = smp.metrics.get_stats(outputs.long(), mask.long(), mode="binary")
 
-        if stage == "train":
-            acc = self.train_acc(logits_mask, mask)
-            self.log('train/loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-            self.log('train/acc', self.train_acc, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-            return loss
+        return {
+            "loss": loss, 
+            "true_positive": true_positive,
+            "false_positive": false_positive,
+            "false_negative": false_negative,
+            "true_negative": true_negative,
+        }
 
-        if stage == "val": 
-            acc = self.val_acc(logits_mask, mask)
-            self.log('val/loss', loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-            self.log('val/acc', self.val_acc, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-            return loss, acc         # During eval stage, also return accuracy
+    def handle_epoch_end(self, outputs, stage):
+        mean_loss = torch.stack([x["loss"] for x in outputs]).mean()
+        true_positive = torch.cat([x["true_positive"] for x in outputs])
+        false_positive = torch.cat([x["false_positive"] for x in outputs])
+        false_negative = torch.cat([x["false_negative"] for x in outputs])
+        true_negative = torch.cat([x["true_negative"] for x in outputs])
 
-        if stage == "test":
-            acc = self.test_acc(logits_mask, mask)
-            self.log('test/loss', loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-            self.log('test/acc', self.test_acc, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-            return loss, acc
+        dataset_iou = smp.metrics.iou_score(true_positive, false_positive, false_negative, true_negative, reduction="micro")
+        metrics = {
+            f"{stage}_loss": mean_loss,
+            f"{stage}_dataset_iou": dataset_iou,
+        }
+
+        self.log_dict(metrics, prog_bar=True)
 
     def training_step(self, batch, batch_idx):
-        train_loss = self.handle_batch(batch, "train")
-        return  train_loss 
+        train_metrics = self.handle_batch(batch)
+        self.training_step_outputs.append(train_metrics)
+        #self.log('train/loss', train_metrics[0], on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        return train_metrics
+
+    def on_train_epoch_end(self):
+        self.handle_epoch_end(self.training_step_outputs, "train")
+        self.training_step_outputs.clear()
+        return None
 
     def validation_step(self, batch, batch_idx):
-        val_loss, val_acc = self.handle_batch(batch, "val")
-        return  val_loss, val_acc 
+        val_metrics = self.handle_batch(batch)
+        self.validation_step_outputs.append(val_metrics)
+        #self.log('val/loss', val_metrics[0], on_step=False, on_epoch=True, prog_bar=True, logger=True)
+        return val_metrics
+
+    def on_validation_epoch_end(self):
+        self.handle_epoch_end(self.validation_step_outputs, "validation")
+        self.validation_step_outputs.clear()
+        return None
 
     def test_step(self, batch, batch_idx):
-        test_loss, test_acc = self.handle_batch(batch, "test")
-        return test_loss, test_acc
+        test_metrics = self.handle_batch(batch)
+        self.test_step_outputs.append(test_metrics)
+        #self.log('test/loss', test_metrics[0], on_step=False, on_epoch=True, prog_bar=True, logger=True)
+        return test_metrics
+
+    def on_test_epoch_end(self):
+        self.handle_epoch_end(self.test_step_outputs, "test")
+        self.test_step_outputs.clear()
+        return None
 
     def configure_optimizers(self):
         # TODO: Unsure of what to use here
-        optimizer = torch.optim.Adam(self.parameters(), lr=0.02)
-        #learning_rate_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1)
-        return optimizer
+        optimizer = torch.optim.Adam(self.parameters(), lr=1e-4)
+        learning_rate_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=20)
+        return ([optimizer], [learning_rate_scheduler])
 
     def predict_step(self, batch):
         inputs, target = batch

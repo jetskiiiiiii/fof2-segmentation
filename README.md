@@ -15,6 +15,10 @@ Notes:
     - Dice Loss: Ideal for handling imbalanced classes by focusing on overlap.
     - Tversky Loss: Adds flexibility by adjusting the penalty on false positives vs. false negatives.
     - Focal Loss: Useful for segmenting small or rare objects by down-weighting easy examples.
+- unet_models
+    - v5 - change LR to 1e-4, add Cosine Annealing scheduler
+    - v9 - change mask extraction method
+    - v10 - more changes to mask extraction to account for values other than 0 and 1
 
 Concerns:
 - are the masks correct?

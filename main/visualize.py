@@ -3,11 +3,11 @@ import numpy as np
 import cv2 as cv
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
-from dataset import FTIDataset
+from dataset import FTIDataset, preprocess_mask
 from transformation import train_transformation, eval_transformation
 
 # Visualize data
-def visualize(image=None, mask=None):
+def visualize_image_mask(image=None, mask=None):
     """PLot images in one row."""
 
     plt.figure(figsize=(10, 5))
@@ -25,20 +25,30 @@ def visualize(image=None, mask=None):
 
     plt.show()
 
+def display_image_grid(dataset):
+    image_filenames = dataset.image_filenames
+    images_directory = dataset.images_directory
+    masks_directory = dataset.masks_directory
 
-if __name__ == "__main__":
-    DATA_DIRECTORY = "dataset/"
-    #x_train_directory = os.path.join(, "")
-    #y_train_directory = os.path.join(, "")
-    #dataset = FITDataset(x_train_directory, y_train_directory)
-    #image, mask = dataset[0]
+    cols = 2
+    rows = len(image_filenames)
+    _, ax = plt.subplots(nrows=rows, ncols=cols, figsize=(10, 24))
+    for i, image_filename in enumerate(image_filenames):
+        image = cv.imread(os.path.join(images_directory, image_filename), cv.IMREAD_COLOR_RGB)
 
-    sample_image_path = os.path.join(DATA_DIRECTORY, "FTIF_LTPMP-14-Feb-2019.png")
-    image = mpimg.imread(sample_image_path)
+        mask = cv.imread(os.path.join(masks_directory, image_filename.replace(".jpg", ".png")), cv.IMREAD_UNCHANGED)
+        mask = preprocess_mask(mask)
+        ax[i, 0].imshow(image)
+        ax[i, 1].imshow(mask, interpolation="nearest", cmap="gray")
 
-    transformed_image = train_transformation(image=image)['image']
+        ax[i, 0].set_title("Image")
+        ax[i, 1].set_title("Ground truth mask")
 
-    visualize(image=transformed_image)
+        ax[i, 0].set_axis_off()
+        ax[i, 1].set_axis_off()
+
+    plt.tight_layout()
+    plt.show()
 
 
 
@@ -114,3 +124,20 @@ def visualize_segmentation(dataset, idx=0, samples=3):
 
 # Assuming train_dataset is created with train_transform:
 # visualize_segmentation(train_dataset, samples=3)
+
+if __name__ == "__main__":
+    DATA_DIRECTORY = "dataset/"
+    sample_image_path = os.path.join(DATA_DIRECTORY, "FTIF_LTPMP-14-Feb-2019.png")
+    image = mpimg.imread(sample_image_path)
+    transformed_image = train_transformation(image=image)['image']
+    #visualize(image=transformed_image)
+
+    image_test_path = "./dataset/test/test_images"
+    mask_test_path = "./dataset/test/test_masks"
+    test_data = FTIDataset(
+        image_test_path,
+        mask_test_path,
+        transformation=eval_transformation
+    )
+
+    display_image_grid(test_data)

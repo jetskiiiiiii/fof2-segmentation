@@ -6,6 +6,10 @@ import torchvision.io as io
 from pydantic import ValidationError
 from torch.utils.data import Dataset
 
+def preprocess_mask(mask):
+    mask = (mask > 0).astype(float)
+    return mask
+
 ## Dataloader
 class FTIDataset(Dataset):
     """FIT Dataset; read images; apply augmentations.
@@ -18,12 +22,11 @@ class FTIDataset(Dataset):
 
     """
 
-    def __init__(self, images_directory, masks_directory, class_name=None, transformation=None):
+    def __init__(self, images_directory, masks_directory, transformation=None):
         self.images_directory = images_directory
         self.masks_directory = masks_directory
         self.image_filenames = sorted(os.listdir(images_directory))
         self.mask_filenames = sorted(os.listdir(masks_directory))
-        self.class_name = class_name
         self.transformation = transformation
 
     def __getitem__(self, idx):
@@ -38,7 +41,7 @@ class FTIDataset(Dataset):
         mask = cv.imread(mask_path, cv.IMREAD_GRAYSCALE)
 
         # Extract classes from masks
-        mask = (mask == self.class_name).astype("float") # Binarization
+        mask = preprocess_mask(mask)
         #print(image.shape, mask.shape) # (656, 875, 3) (656, 875)
 
         if self.transformation is not None:
