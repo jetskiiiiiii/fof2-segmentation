@@ -3,4 +3,5 @@
 lightning_logs/
 *.ckpt
 main/__pycache__/
+logs/
 

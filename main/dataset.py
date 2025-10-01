@@ -41,11 +41,13 @@ class FTIDataset(Dataset):
         mask = (mask == self.class_name).astype("float") # Binarization
         #print(image.shape, mask.shape) # (656, 875, 3) (656, 875)
 
-        if self.transformation:
-            transformed_image = self.transformation(image=image)
-            image = transformed_image["image"]
-            transformed_mask = self.transformation(image=mask)
-            mask = transformed_mask["image"]
+        if self.transformation is not None:
+            #transformed_image = self.transformation(image=image)
+            #image = transformed_image["image"]
+            #transformed_mask = self.transformation(image=mask)
+            #mask = transformed_mask["image"]
+            transformed = self.transformation(image=image, mask=mask)
+            image, mask = transformed["image"], transformed["mask"]
 
         # Add extra dimension as channel to represent grayscale
         mask = np.expand_dims(mask, axis=-1)

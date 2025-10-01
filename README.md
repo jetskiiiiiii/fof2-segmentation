@@ -4,10 +4,24 @@ files -> dataloader (-> dataset (-> transformations)) -> trainer
 
 Todo:
 - research what optimizer/learning rate/scheduler/step size is best
+- use learning rate scheduler
 - implement setting in visualize fn to see image, true mask, and prediction mask
-- get data to put into dataloader
+- (DONE) get data to put into dataloader
+- implement metrics (IoU, Dice Coefficient, Pixel Accuracy)
+    - val should calculate metrics at each epoch
+
+Notes:
+- losses
+    - Dice Loss: Ideal for handling imbalanced classes by focusing on overlap.
+    - Tversky Loss: Adds flexibility by adjusting the penalty on false positives vs. false negatives.
+    - Focal Loss: Useful for segmenting small or rare objects by down-weighting easy examples.
+
+Concerns:
+- are the masks correct?
 
 References:
+- Image Segmentation Practices
+    - https://medium.com/@heyamit10/pytorch-segmentation-models-a-practical-guide-5bf973a32e30
 - Models loaded from SMP
     - https://smp.readthedocs.io/en/latest/quickstart.html
     - https://smp.readthedocs.io/en/latest/models.html
@@ -32,3 +46,6 @@ References:
     - https://medium.com/data-scientists-diary/understanding-and-effectively-using-register-buffer-in-pytorch-72e6d1c94a95
 - Dice Loss as loss function
     - https://arxiv.org/pdf/2312.05391v1
+- Accuracy metrics
+    - Binary accuracy
+        - https://lightning.ai/docs/torchmetrics/stable/classification/accuracy.html#binaryaccuracy

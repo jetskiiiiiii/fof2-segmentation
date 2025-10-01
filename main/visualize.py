@@ -1,4 +1,6 @@
 import os
+import numpy as np
+import cv2 as cv
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 from dataset import FTIDataset
@@ -51,7 +53,7 @@ def overlay_mask(image, mask, alpha=0.5, color=(0, 1, 0)): # Green overlay
     mask_overlay[mask > 0] = (np.array(color) * 255).astype(np.uint8)
 
     # Blend image and overlay
-    overlayed_image = cv2.addWeighted(image, 1, mask_overlay, alpha, 0)
+    overlayed_image = cv.addWeighted(image, 1, mask_overlay, alpha, 0)
     return overlayed_image
 
 

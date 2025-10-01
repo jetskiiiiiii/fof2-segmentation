@@ -6,6 +6,7 @@ from torchmetrics.classification import BinaryAccuracy
 class FO2Model(L.LightningModule):
     def __init__(self, architecture, encoder_name, encoder_weights, in_channels, classes, device):
         super().__init__()
+        self.save_hyperparameters() # Automatically save hyperparameters so we don't have to pass all arguments at inference
         self.architecture_name = architecture
         self.model = smp.create_model(
             architecture,
@@ -23,6 +24,9 @@ class FO2Model(L.LightningModule):
         self.register_buffer("running_mean", torch.tensor(preprocessing_params["mean"]).view(1, 3, 1, 1))
 
         self.loss = smp.losses.DiceLoss(mode="binary", from_logits=True)
+        self.train_acc = BinaryAccuracy()
+        self.val_acc = BinaryAccuracy()
+        self.test_acc = BinaryAccuracy()
 
         self.dev = device
         self.model.float()
@@ -40,13 +44,23 @@ class FO2Model(L.LightningModule):
         logits_mask = self.forward(image)
         loss = self.loss(logits_mask, mask)
 
-        # During eval stage, also return accuracy
-        if stage == "val" or stage == "test":
-            acc = BinaryAccuracy().to(self.dev)
-            acc(logits_mask, mask)
-            return loss, acc
+        if stage == "train":
+            acc = self.train_acc(logits_mask, mask)
+            self.log('train/loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+            self.log('train/acc', self.train_acc, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+            return loss
 
-        return loss
+        if stage == "val": 
+            acc = self.val_acc(logits_mask, mask)
+            self.log('val/loss', loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+            self.log('val/acc', self.val_acc, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+            return loss, acc         # During eval stage, also return accuracy
+
+        if stage == "test":
+            acc = self.test_acc(logits_mask, mask)
+            self.log('test/loss', loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+            self.log('test/acc', self.test_acc, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+            return loss, acc
 
     def training_step(self, batch, batch_idx):
         train_loss = self.handle_batch(batch, "train")
@@ -65,4 +79,12 @@ class FO2Model(L.LightningModule):
         optimizer = torch.optim.Adam(self.parameters(), lr=0.02)
         #learning_rate_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1)
         return optimizer
+
+    def predict_step(self, batch):
+        inputs, target = batch
+        logits_mask = self.forward(inputs)
+        #probabilities = torch.sigmoid(logits_mask)
+        #binary_mask = (probabilities > 0.5).int()
+        return logits_mask
+        return binary_mask
 
