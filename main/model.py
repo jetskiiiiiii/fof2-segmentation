@@ -1,7 +1,6 @@
 import torch
 import lightning as L
 import segmentation_models_pytorch as smp
-from torchmetrics.classification import BinaryAccuracy
 
 class FO2Model(L.LightningModule):
     def __init__(self, architecture, encoder_name, encoder_weights, in_channels, classes, device):
@@ -36,8 +35,8 @@ class FO2Model(L.LightningModule):
 
     def forward(self, image):
         image = (image - self.running_mean) / self.running_std  # Custom normalization
-        mask = self.model(image)                # Passing image to model to train
-        return mask
+        output = self.model(image)                # Passing image to model to train
+        return output 
 
     def handle_batch(self, batch):
         # Incoming image must have shape (batch, channels, height, width)
@@ -81,7 +80,6 @@ class FO2Model(L.LightningModule):
     def training_step(self, batch, batch_idx):
         train_metrics = self.handle_batch(batch)
         self.training_step_outputs.append(train_metrics)
-        #self.log('train/loss', train_metrics[0], on_step=True, on_epoch=True, prog_bar=True, logger=True)
         return train_metrics
 
     def on_train_epoch_end(self):
@@ -92,7 +90,6 @@ class FO2Model(L.LightningModule):
     def validation_step(self, batch, batch_idx):
         val_metrics = self.handle_batch(batch)
         self.validation_step_outputs.append(val_metrics)
-        #self.log('val/loss', val_metrics[0], on_step=False, on_epoch=True, prog_bar=True, logger=True)
         return val_metrics
 
     def on_validation_epoch_end(self):
@@ -103,7 +100,6 @@ class FO2Model(L.LightningModule):
     def test_step(self, batch, batch_idx):
         test_metrics = self.handle_batch(batch)
         self.test_step_outputs.append(test_metrics)
-        #self.log('test/loss', test_metrics[0], on_step=False, on_epoch=True, prog_bar=True, logger=True)
         return test_metrics
 
     def on_test_epoch_end(self):
@@ -117,11 +113,14 @@ class FO2Model(L.LightningModule):
         learning_rate_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=20)
         return ([optimizer], [learning_rate_scheduler])
 
-    def predict_step(self, batch):
+    def predict_step(self, batch, batch_idx):
         inputs, target = batch
         logits_mask = self.forward(inputs)
-        #probabilities = torch.sigmoid(logits_mask)
-        #binary_mask = (probabilities > 0.5).int()
-        return logits_mask
-        return binary_mask
+
+        probability_mask = logits_mask.sigmoid()
+        final_binary_mask = (probability_mask > 0.5).float()
+        mask_2d = final_binary_mask.squeeze().cpu()
+        mask_array = mask_2d.numpy()
+        #print(mask_array[0][0])
+        return mask_array
 

@@ -7,8 +7,13 @@ from pydantic import ValidationError
 from torch.utils.data import Dataset
 
 def preprocess_mask(mask):
-    mask = (mask > 0).astype(float)
-    return mask
+    """ Extracting FTI class from mask. FTI class represented as 2.
+
+    Args:
+        - mask
+
+    """
+    return (mask == 2).astype(float)
 
 ## Dataloader
 class FTIDataset(Dataset):
@@ -25,8 +30,16 @@ class FTIDataset(Dataset):
     def __init__(self, images_directory, masks_directory, transformation=None):
         self.images_directory = images_directory
         self.masks_directory = masks_directory
-        self.image_filenames = sorted(os.listdir(images_directory))
-        self.mask_filenames = sorted(os.listdir(masks_directory))
+        self.all_files_in_images_directory = os.listdir(images_directory)
+        self.all_files_in_masksk_directory = os.listdir(masks_directory)
+        self.image_filenames = sorted([
+            f for f in self.all_files_in_images_directory if f.endswith('.jpg')
+        ])
+        self.mask_filenames = sorted([
+            f for f in self.all_files_in_masksk_directory if f.endswith('.png')
+        ])
+        assert len(self.image_filenames) == len(self.mask_filenames) # Ensuring folders have same number of files
+
         self.transformation = transformation
 
     def __getitem__(self, idx):
@@ -37,8 +50,10 @@ class FTIDataset(Dataset):
 
         # Reading and converting image/mask to RGB and grayscale
         image = cv.imread(image_path)
-        image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
         mask = cv.imread(mask_path, cv.IMREAD_GRAYSCALE)
+        assert image is not None and mask is not None   # Ensuring image and mask are read properly
+
+        image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
 
         # Extract classes from masks
         mask = preprocess_mask(mask)
@@ -69,3 +84,6 @@ class FTIDataset(Dataset):
         
     def __len__(self):
         return(len(self.image_filenames))
+    
+    def get_name(self, idx):
+        return self.image_filenames[idx]

@@ -21,7 +21,6 @@ Notes:
     - v10 - more changes to mask extraction to account for values other than 0 and 1
 
 Concerns:
-- are the masks correct?
 
 References:
 - Image Segmentation Practices
@@ -53,3 +52,8 @@ References:
 - Accuracy metrics
     - Binary accuracy
         - https://lightning.ai/docs/torchmetrics/stable/classification/accuracy.html#binaryaccuracy
+    - IoU Metrics
+        - https://smp.readthedocs.io/en/latest/metrics.html#segmentation_models_pytorch.metrics.functional.get_stats
+- Logging metrics
+    - https://lightning.ai/docs/torchmetrics/v1.8.2/pages/lightning.html
+    - https://lightning.ai/docs/pytorch/stable/extensions/logging.html

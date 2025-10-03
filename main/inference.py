@@ -1,44 +1,47 @@
 import os
-import torch
-import numpy as np
 import lightning as L
+import matplotlib.pyplot as plt
 from model import FO2Model
-from visualize import visualize, overlay_mask
-from dataloader import test_loader
+from dataloader import test_loader, test_data
 
-unet_model_path = "Unet_best_1.ckpt"
-test_images_directory = "./dataset/test/test_images/"
-test_masks_directory = "./dataset/test/test_masks/"
-image_filenames = os.listdir(test_images_directory)
-mask_filenames = os.listdir(test_masks_directory)
+unet_model_path = "Unet_best_11.ckpt"
+predictions_directory = "predictions/v11/"
 
-# Hyperparameters that need to be passed because we forgot to call save_hyperparameters()
-encoder_name = "resnet18" # Using encoder with smallest params
-encoder_weights = "imagenet"
-in_channels = 3
-classes = 1
-device = "mps"
-
-model = FO2Model.load_from_checkpoint(unet_model_path, architecture="Unet", encoder_name=encoder_name, encoder_weights=encoder_weights, in_channels=in_channels, classes=classes, device=device)
-idx = 0
-x = os.path.join(test_images_directory, image_filenames[idx])
+model = FO2Model.load_from_checkpoint(unet_model_path)
+model.eval()
+model.freeze()
 
 # Using predict_step
 trainer = L.Trainer()
-predictions = trainer.predict(model, dataloaders=test_loader)[0] # Returns list containing one Tensor of torch.Size([13, 1, 640, 640])
+predictions = trainer.predict(model, dataloaders=test_loader) # Returns list containing one Tensor of torch.Size([13, 1, 640, 640])
+predictions = predictions[0]
 
-# Using eval
-#model.eval()
-#with torch.no_grad():
-#    batch = test_loader
-#    pred = model(batch)
-#
-    # See masks
-pred_tensor = predictions[idx].detach().cpu()
-print(pred_tensor)
-pred = (pred_tensor > 0).numpy().astype(np.uint8)
-#print(pred[0, 0, :])
-# print(pred.shape) Should be H, w
+def save_prediction_as_jpg(predictions, predictions_directory):
+    for i in range(len(predictions)):
+        filename = os.path.join(predictions_directory, f"{test_data.get_name(i)}")
+        os.makedirs(predictions_directory, exist_ok=True)
 
-overlayed_image = overlay_mask(x, pred[0, 0, :])
-visualize(overlayed_image)
+        fig, axes = plt.subplots(1, figsize=(10, 5))
+
+        # Use 'binary' colormap for clear visualization of 0s and 1s
+        # Invert the colormap if the background is 0 and you want it dark
+        plt.imshow(predictions[i], cmap='binary_r') # 
+        plt.axis('off')
+
+        plt.tight_layout()
+        plt.savefig(filename, format='jpg', bbox_inches='tight', pad_inches=0, dpi=100)
+        plt.close()
+
+def plot_predictions(mask):
+    fig, axes = plt.subplots(1, figsize=(10, 5))
+
+    # Use 'binary' colormap for clear visualization of 0s and 1s
+    # Invert the colormap if the background is 0 and you want it dark
+    plt.imshow(mask, cmap='binary_r') # 
+    plt.axis('off')
+
+    plt.tight_layout()
+    plt.show()
+
+if __name__ == "__main__":
+    save_prediction_as_jpg(predictions, predictions_directory)
