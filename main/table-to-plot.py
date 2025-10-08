@@ -9,12 +9,15 @@ def table_to_plot_manual() -> None:
     Note: Specific function to be used on dataset/data_scaling_manual
 
     """
-    table_directory = "./dataset/data_scaling_manual/data_raw/"
-    table_filenames = os.listdir(table_directory)
-    split_date_by = "plot_by_day/"
+    table_raw_directory = "./dataset/data_scaling_manual/data_raw/"
+    table_filenames = os.listdir(table_raw_directory)
+    main_directory = "./dataset/data_scaling_manual/"
+    split_date_by = "plot_by_day"
+
+    plot_bg_color = "black"
+    plot_markers_color = "white"
 
     for table_filename in table_filenames:
-        print(table_filename)
         if table_filename not in [".DS_Store", "plot_by_month", "plot_by_day"]:
             # Filenames are formatted "X Month Year-X X.csv"
             # Take out the Month and Year to get name of new file (plot we want to make)
@@ -24,7 +27,7 @@ def table_to_plot_manual() -> None:
             year = year_with_suffix.split("-")[0]
             timeframe = f"{month}_{year}"
 
-            filepath = os.path.join(table_directory, table_filename)
+            filepath = os.path.join(table_raw_directory, table_filename)
 
             table = pd.read_csv(filepath)
             table['Day'] = table['Tgl'].ffill()
@@ -38,14 +41,14 @@ def table_to_plot_manual() -> None:
                 fig_dim = 640 / dpi 
 
                 plt.figure(figsize=(fig_dim, fig_dim))
-                plt.ylim(0, 35)
+                plt.ylim(0, 20)
 
                 # Plot 0: Vertical connecting lines
                 plt.vlines(
                     x=foF2_and_fmin_present["UT+7"],
                     ymin=foF2_and_fmin_present["fmin"],
                     ymax=foF2_and_fmin_present["foF2"],
-                    colors="black",
+                    colors=plot_markers_color,
                     linestyle='-',
                     linewidth=8,
                     alpha=1,
@@ -58,7 +61,7 @@ def table_to_plot_manual() -> None:
                     foF2_and_fmin_present["UT+7"],
                     foF2_and_fmin_present["fmin"],
                     #label='fmin',
-                    color='black',
+                    color=plot_markers_color,
                     marker='o'
                 )
 
@@ -67,7 +70,7 @@ def table_to_plot_manual() -> None:
                     foF2_and_fmin_present["UT+7"],
                     foF2_and_fmin_present["foF2"],
                     #label="foF2",
-                    color='black',
+                    color=plot_markers_color,
                     marker='o'
                 )
 
@@ -79,6 +82,16 @@ def table_to_plot_manual() -> None:
                 #plt.title(timeframe)
                 plt.grid(axis='y', linestyle=':', alpha=0.6)
 
+                # Get rid of borders
+                ax = plt.gca()
+                ax.spines['top'].set_visible(False)
+                ax.spines['right'].set_visible(False)
+                ax.spines['left'].set_visible(False)
+                ax.spines['bottom'].set_visible(False)
+
+                # Set background to black
+                ax.set_facecolor(plot_bg_color)
+
                 # Improve x-axis readability for datetime objects
                 plt.gcf().autofmt_xdate()
 
@@ -86,7 +99,7 @@ def table_to_plot_manual() -> None:
                 plt.tight_layout()
                 #plt.show()
 
-                savepath = f"{table_directory}/{split_date_by}/{timeframe}_{day}.png"
+                savepath = f"{main_directory}/{split_date_by}/{timeframe}_{day}.png"
                 plt.savefig(savepath)
                 plt.close()
 
