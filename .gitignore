@@ -5,4 +5,5 @@ lightning_logs/
 main/__pycache__/
 logs/
 predictions/
+dataset/data_scaling_manual/.DS_Store
 

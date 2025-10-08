@@ -21,6 +21,7 @@ Notes:
     - v10 - more changes to mask extraction to account for values other than 0 and 1
 
 Concerns:
+- what to do with fmin without fof2?
 
 References:
 - Image Segmentation Practices
