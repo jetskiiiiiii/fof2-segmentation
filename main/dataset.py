@@ -2,8 +2,6 @@ import os
 import numpy as np
 import cv2 as cv
 import torch
-import torchvision.io as io
-from pydantic import ValidationError
 from torch.utils.data import Dataset
 
 def preprocess_mask(mask):
@@ -64,6 +62,7 @@ class FTIDataset(Dataset):
             #image = transformed_image["image"]
             #transformed_mask = self.transformation(image=mask)
             #mask = transformed_mask["image"]
+
             transformed = self.transformation(image=image, mask=mask)
             image, mask = transformed["image"], transformed["mask"]
 
@@ -80,7 +79,7 @@ class FTIDataset(Dataset):
         mask = mask.permute(2, 0, 1)
         #print(image.shape, mask.shape) # (C, H, W)
 
-        return image, mask
+        return image, mask, image_name
         
     def __len__(self):
         return(len(self.image_filenames))

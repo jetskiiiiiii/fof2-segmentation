@@ -9,6 +9,33 @@ Todo:
 - (DONE) get data to put into dataloader
 - implement metrics (IoU, Dice Coefficient, Pixel Accuracy)
     - val should calculate metrics at each epoch
+- for 08/17
+    - experiment with batch size
+    - compare accuracy between augmented vs. non-augmented
+    - see model architecture 
+    - try different architecture
+    - plot with stacked bar chart
+    - when plotting, be mindful of empty graphs
+- for 08/21
+    - finish roboflow annotations
+    - train on bigger dataset
+    - turn mask into numeric
+    - draw masks onto graph for models
+- for 08/28
+    - train with plotting masks
+    - annotate roboflow
+    - get numeric of predictions
+- for 09/
+    - compare numeric with manual
+        - compare numeric of different models against manual
+        - use rse
+    - overlay numeric plot with original image
+    - fix functions
+        - move and rename image/masks
+        - view mask
+        - view image
+        - overlay mask to image
+    - bikin surat permohonan magang dan di tambah di awal proposal
 
 Notes:
 - losses
@@ -19,6 +46,16 @@ Notes:
     - v5 - change LR to 1e-4, add Cosine Annealing scheduler
     - v9 - change mask extraction method
     - v10 - more changes to mask extraction to account for values other than 0 and 1
+- why ground truth produces a weird mask:
+    - differences in scatter plot scale and fti image scale
+    - process of making fti and making numeric values differ
+- model versions
+    - v11: 32 batch
+    - v12: 8 batch
+    - v13: 64 batch
+    - v14: no transform
+    - v15: deeplab
+    - v16: fpn
 
 Concerns:
 - what to do with fmin without fof2?

@@ -41,7 +41,7 @@ class FO2Model(L.LightningModule):
     def handle_batch(self, batch):
         # Incoming image must have shape (batch, channels, height, width)
         # Incoming mask must have values between 0 and 1
-        image, mask = batch
+        image, mask, _ = batch
 
         # Must be true to correctly calculate IoU score
         assert torch.all((mask == 0) | (mask == 1)) # False
@@ -114,7 +114,7 @@ class FO2Model(L.LightningModule):
         return ([optimizer], [learning_rate_scheduler])
 
     def predict_step(self, batch, batch_idx):
-        inputs, target = batch
+        inputs, target, filename = batch
         logits_mask = self.forward(inputs)
 
         probability_mask = logits_mask.sigmoid()

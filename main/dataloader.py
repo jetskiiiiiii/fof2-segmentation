@@ -32,7 +32,7 @@ test_data = FTIDataset(
 )
 
 # hyperparameters
-batch_size = 32
+batch_size = 8
 
 # dataloaders
 train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=0)

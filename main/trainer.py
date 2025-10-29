@@ -1,5 +1,6 @@
 import lightning as L
 from model import FO2Model
+from torchinfo import summary
 from dataloader import train_loader, val_loader
 from lightning.pytorch.loggers import CSVLogger
 
@@ -20,5 +21,8 @@ model_fpn = FO2Model(architecture="fpn", encoder_name=encoder_name, encoder_weig
 logger = CSVLogger("logs", name="training_log")
 
 trainer = L.Trainer(max_epochs=MAX_EPOCHS, accelerator=device, devices=1, logger=logger) # Running on Apple Silicon
-trainer.fit(model_unet, train_dataloaders=train_loader, val_dataloaders=val_loader)
+trainer.fit(model_fpn, train_dataloaders=train_loader, val_dataloaders=val_loader)
 trainer.save_checkpoint(f"{model_unet.architecture_name}_best.ckpt")
+
+#summary(model_deeplabv3, input_size=(8, 3, 640, 640))
+#summary(model_fpn, input_size=(8, 3, 640, 640))

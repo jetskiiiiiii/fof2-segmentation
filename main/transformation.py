@@ -10,7 +10,7 @@ Transformation inspired by https://albumentations.ai/docs/examples/example-kaggl
 """
 train_transformation = A.Compose([
     A.Crop(x_min=original_x_min, x_max=original_x_max, y_min=original_y_min, y_max=original_y_max), # Based on trial and error
-    A.PadIfNeeded(min_height=TARGET_DIMS, min_width=TARGET_DIMS, p=1),
+    #A.PadIfNeeded(min_height=TARGET_DIMS, min_width=TARGET_DIMS, p=1),
 
     A.D4(p=1),
 
@@ -44,6 +44,6 @@ train_transformation = A.Compose([
 
 eval_transformation = A.Compose([
     A.Crop(x_min=original_x_min, x_max=original_x_max, y_min=original_y_min, y_max=original_y_max), # Based on trial and error
-    A.PadIfNeeded(min_height=TARGET_DIMS, min_width=TARGET_DIMS, p=1),
+    #A.PadIfNeeded(min_height=TARGET_DIMS, min_width=TARGET_DIMS, p=1),
     A.Resize(height=TARGET_DIMS, width=TARGET_DIMS),
 ])

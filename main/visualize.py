@@ -51,8 +51,6 @@ def display_image_grid(dataset):
     plt.tight_layout()
     plt.show()
 
-
-
 ### Code from https://albumentations.ai/docs/3-basic-usage/semantic-segmentation/
 ### Will be implemented later
 
@@ -70,13 +68,13 @@ def overlay_mask(image, mask, alpha=0.5, color=(0, 1, 0)): # Green overlay
     return overlayed_image
 
 
-def visualize_segmentation(dataset, idx=0, samples=3):
+def visualize_segmentation(dataset, idx=-1, samples=3):
     figure, ax = plt.subplots(samples + 1, 2, figsize=(8, 4 * (samples + 1)))
 
     # --- Get the original image and mask --- #
     original_transform = dataset.transformation
     dataset.transformation = None # Temporarily disable for raw data access
-    image, mask = dataset[idx]
+    image, mask, _ = dataset[idx]
     dataset.transformation = original_transform # Restore
 
     image = image.permute(1, 2, 0)
@@ -114,7 +112,7 @@ def visualize_segmentation(dataset, idx=0, samples=3):
 # visualize_segmentation(train_dataset, samples=3)
 
 def display_image_grid(images_filenames, images_directory, masks_directory, predicted_masks=None):
-    cols = 3 if predicted_masks.any() else 2
+    cols = 3 if predicted_masks else 2
     rows = len(images_filenames)
     _, ax = plt.subplots(nrows=rows, ncols=cols, figsize=(10, 24))
     for i, image_filename in enumerate(images_filenames):
@@ -141,9 +139,9 @@ def display_image_grid(images_filenames, images_directory, masks_directory, pred
 
 if __name__ == "__main__":
     DATA_DIRECTORY = "dataset/"
-    sample_image_path = os.path.join(DATA_DIRECTORY, "FTIF_LTPMP-14-Feb-2019.png")
-    image = mpimg.imread(sample_image_path)
-    transformed_image = train_transformation(image=image)['image']
+    #sample_image_path = os.path.join(DATA_DIRECTORY, "FTIF_LTPMP-14-Feb-2019.png")
+    #image = mpimg.imread(sample_image_path)
+    #transformed_image = train_transformation(image=image)['image']
     #visualize(image=transformed_image)
 
     image_test_path = "./dataset/test/test_images"
@@ -153,8 +151,10 @@ if __name__ == "__main__":
         mask_test_path,
         transformation=eval_transformation
     )
+    image_names = os.listdir(image_test_path)
 
-    #display_image_grid(test_data)
+    #display_image_grid(image_names, image_test_path, mask_test_path)
 
     visualize_segmentation(test_data)
+    #overlay_mask("./dataset/v2/test/FTIF_LTPMP-1-Dec-2020_png.rf.14e080200c091210b2a6e39ef44c6c49.png", "./dataset/v2/FTIF_LTPMP-1-Dec-2020_png.rf.14e080200c091210b2a6e39ef44c6c49_mask.png")
 
