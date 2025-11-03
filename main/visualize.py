@@ -1,11 +1,42 @@
 import os
-import numpy as np
+import torch 
 import cv2 as cv
+import numpy as np
+import albumentations as A
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
-import albumentations as A
+
 from dataset import FTIDataset, preprocess_mask
 from transformation import train_transformation, eval_transformation
+
+def plot_image(image_path):
+    """
+
+    Args:
+        - image_path (str): Path to raw image (jpg)
+    """
+    img = mpimg.imread(image_path)
+    assert img is not None
+
+    fig, ax = plt.subplots()
+    ax.imshow(img)
+    ax.axis("off")
+    plt.show()
+
+def plot_mask(mask_path):
+    """
+
+    Args:
+        - mask_path (str): Path to string (png)
+    """
+    mask = cv.imread(mask_path, cv.IMREAD_UNCHANGED)
+    assert mask is not None
+    mask = preprocess_mask(mask)
+    fig, ax = plt.subplots()
+    ax.imshow(mask, interpolation="nearest", cmap="binary_r")
+
+    ax.axis('off')
+    plt.show()
 
 # Visualize data
 def visualize_image_mask(image=None, mask=None):
@@ -137,6 +168,45 @@ def display_image_grid(images_filenames, images_directory, masks_directory, pred
     plt.tight_layout()
     plt.show()
 
+def overlay_any_mask_to_image(path_to_mask: str, path_to_image: str, path_to_save: str, is_image_tensor: bool =False):
+    image = None
+    if is_image_tensor:
+        image_tensor = torch.load(path_to_image, weights_only=False)
+        permuted_image_tensor = image_tensor.permute(1, 2, 0)
+        image = permuted_image_tensor.numpy().astype(np.uint8)
+    else:
+        image = cv.imread(path_to_image) 
+        assert image is not None, "File could not be read."
+        image = eval_transformation(image=image)
+        image = image["image"]
+        image = cv.cvtColor(image, cv.COLOR_BGR2RGB)    # For compatibility with Matplotlib
+
+    mask = mpimg.imread(path_to_mask)
+
+    dpi = 100
+    fig_dim = 640 / dpi
+
+    fig, ax = plt.subplots(figsize=(fig_dim, fig_dim), dpi=dpi)
+    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+
+    ax.imshow(
+        mask,
+        cmap="binary_r",
+        alpha=0.4,
+        zorder=1,
+    )
+
+    ax.imshow(
+        image,
+        zorder=0
+    )
+
+    ax.axis("off")
+
+    plt.savefig(path_to_save, format='jpg', pad_inches=0)
+    plt.close()
+
+
 if __name__ == "__main__":
     DATA_DIRECTORY = "dataset/"
     #sample_image_path = os.path.join(DATA_DIRECTORY, "FTIF_LTPMP-14-Feb-2019.png")
@@ -144,17 +214,20 @@ if __name__ == "__main__":
     #transformed_image = train_transformation(image=image)['image']
     #visualize(image=transformed_image)
 
-    image_test_path = "./dataset/test/test_images"
-    mask_test_path = "./dataset/test/test_masks"
-    test_data = FTIDataset(
-        image_test_path,
-        mask_test_path,
-        transformation=eval_transformation
-    )
-    image_names = os.listdir(image_test_path)
+    #image_test_path = "./dataset/test/test_images"
+    #mask_test_path = "./dataset/test/test_masks"
+    #test_data = FTIDataset(
+    #    image_test_path,
+    #    mask_test_path,
+    #    transformation=eval_transformation
+    #)
+    #image_names = os.listdir(image_test_path)
 
-    #display_image_grid(image_names, image_test_path, mask_test_path)
+    #visualize_segmentation(test_data)
 
-    visualize_segmentation(test_data)
-    #overlay_mask("./dataset/v2/test/FTIF_LTPMP-1-Dec-2020_png.rf.14e080200c091210b2a6e39ef44c6c49.png", "./dataset/v2/FTIF_LTPMP-1-Dec-2020_png.rf.14e080200c091210b2a6e39ef44c6c49_mask.png")
+    # Works
+    #plot_image("./dataset/test/test_images/FTIF_LTPMP-1-Dec-2020.jpg")
+    #plot_mask("./dataset/test/test_masks/FTIF_LTPMP-7-Jan-2019.png")
+
+    overlay("./predictions/numeric_plot/v20/FTIF_LTPMP-1-Apr-2019.jpg", "./dataset/test/test_images/FTIF_LTPMP-1-Apr-2019.jpg", "./predictions/for_testing/FTIF_LTPMP-1-Apr-2019_numeric_overlay.jpg")
 

@@ -25,17 +25,32 @@ Todo:
     - train with plotting masks
     - annotate roboflow
     - get numeric of predictions
-- for 09/
-    - compare numeric with manual
-        - compare numeric of different models against manual
-        - use rse
-    - overlay numeric plot with original image
+- for 09/03
     - fix functions
-        - move and rename image/masks
-        - view mask
-        - view image
-        - overlay mask to image
+        - (DONE) move and rename image/masks (dataset/move_and_rename_data.sh)
+        - (DONE) view mask (visualize/plot_image)
+        - (DONE) view image (visualize/plot_mask)
+        - (DONE) get predictions (inference/get_prediction_tensor)
+        - (DONE) get mask from prediction and overlay (inference/convert_all_predictions_to_mask_and_overlay)
+        - (DONE) overlay any mask to image
+        - turn manual to mask
+        - (DONE) combine foes/fof2 in manual (eval_with_manual/prepare_manual_and_numeric_for_evaluation)
+        - (DONE) automate getting metrics of model (eval_with_manual/get_metrics_all_numeric_with_manual)
+    - functions to create
+        - (DONE) plot/save numeric
+    - (DONE) train all models with 2020/2019 data
+    - (DONE) get numeric of all models
+    - (DONE) compare numeric with manual
+        - (DONE) compare numeric of different models against manual
+        - (DONE) use rse
+    - (DONE) overlay numeric plot with original image
     - bikin surat permohonan magang dan di tambah di awal proposal
+    - presentation:
+        - (DONE but decided not to put) accuracy vs. loss of new models (20, 21, 22)
+        - (DONE) overlay of new models
+        - (DONE) example of numeric plot over original
+        - (DONE) rse, rmse of numeric of models with manual
+        - rse, rmse of quickscale
 
 Notes:
 - losses
@@ -56,6 +71,18 @@ Notes:
     - v14: no transform
     - v15: deeplab
     - v16: fpn
+    - v17: fpn with 2019/2020 data, 15 epochs
+    - v18: deeplabv3, 2019/2020, 15 epochs
+    - v19: unet, 2019/2020, 15 epochs
+    - v20: fpn, resized images, 2019/2020, 15 Es
+    - v21: deeplabv3, resized images, 2019/2020, 15 Es
+    - v22: unet, resized images, 2019/2020, 15 Es
+- post pipeline:
+    1. predict
+    2. get mask
+    3. get numeric from mask 
+    4. prepare manual/numeric (need both because dependent on empty cells from both)
+    5. get rse, rmse
 
 Concerns:
 - what to do with fmin without fof2?

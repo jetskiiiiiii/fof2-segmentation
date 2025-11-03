@@ -1,6 +1,9 @@
+import cv2 as cv
 import albumentations as A
+import matplotlib.pyplot as plt
 
-original_x_min, original_x_max, original_y_min, original_y_max = 100, 692, 50, 540
+original_x_min, original_x_max, original_y_min, original_y_max = 100, 697, 50, 582
+#original_x_min, original_x_max, original_y_min, original_y_max = 100, 692, 50, 540
 original_height = original_y_max - original_y_min
 original_width = original_x_max - original_x_min
 TARGET_DIMS = 640
@@ -47,3 +50,26 @@ eval_transformation = A.Compose([
     #A.PadIfNeeded(min_height=TARGET_DIMS, min_width=TARGET_DIMS, p=1),
     A.Resize(height=TARGET_DIMS, width=TARGET_DIMS),
 ])
+
+if __name__ == "__main__":
+    path_to_image = f"./dataset/test/test_images/FTIF_LTPMP-1-Apr-2019.jpg"
+    image = cv.imread(path_to_image) 
+    assert image is not None, "File could not be read."
+    image = eval_transformation(image=image)
+    image = image["image"]
+    image = cv.cvtColor(image, cv.COLOR_BGR2RGB)    # For compatibility with Matplotlib
+
+    dpi = 100
+    fig_dim = 640 / dpi
+
+    fig, ax = plt.subplots(figsize=(fig_dim, fig_dim), dpi=dpi)
+    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+
+    ax.imshow(
+        image,
+        zorder=0
+    )
+
+    ax.axis("off")
+    plt.savefig("./predictions/for_testing/x.jpg", format='jpg', pad_inches=0)
+    plt.close()

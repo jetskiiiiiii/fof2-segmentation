@@ -11,7 +11,7 @@ def preprocess_mask(mask):
         - mask
 
     """
-    return (mask == 2).astype(float)
+    return (mask == 1).astype(float)
 
 ## Dataloader
 class FTIDataset(Dataset):
