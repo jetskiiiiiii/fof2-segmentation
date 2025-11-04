@@ -20,6 +20,8 @@ def get_numeric_as_csv(path_to_mask: str, path_to_save: str):
     #print(edges[:, 609]) # col view
     #print(edges[600, :]) # row view
 
+    # To get per 15 minutes, we divide the plot by 96,
+    # since the predicted mask has no knowledge of time.
     float_indices = np.linspace(0, mask_height, 96)
     sampled_col_indices = np.round(float_indices).astype(int)
     sampled_col_indices = sampled_col_indices[sampled_col_indices < mask_height]    # Ensure the indices do not exceed the array bounds (639)

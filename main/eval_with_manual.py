@@ -435,23 +435,216 @@ def get_metrics_single_numeric_with_manual(path_to_numeric_csv: str, path_to_man
 
     return round(rse, 3), round(rmse, 3), round(gmin, 3), round(gmax, 3), round(grange, 3)
 
+def get_metrics_all_quickscale_with_manual(path_to_manual_days_dir: str, path_to_quickscale_dir: str):
+    """
+    """
+    quickscale_filenames = os.listdir(path_to_quickscale_dir)
+
+    global_top_rse, global_bot_rse, global_total_values, global_sum_manual, global_mean_manual = 0, 0, 0, 0, 0
+    global_mse = 0
+    final_rse, final_rmse = 0, 0
+    target_range = {"min": 100000, "max": 0}    # Setting min to arbitrarily high value to compare with real mins
+    final_range, global_min, global_max = 0, 0, 0
+
+    # Need to loop through entire dataset twice, first to calculate global_mean_manual then to calculate final RSE
+    for i in range(2):
+        for quickscale_filename in quickscale_filenames:
+            # Ignore .DS_Store
+            if quickscale_filename.startswith("."):
+                continue
+            qs_df = pd.read_csv(os.path.join(path_to_quickscale_dir, quickscale_filename))
+            manual_df = pd.read_csv(os.path.join(path_to_manual_days_dir, quickscale_filename)) # Using quickscale_filename because filenames are same
+
+            # Add time (float) column to manual
+            manual_df["time_as_float"] = np.arange(0.0, 24, 0.25) 
+
+            # Split qs into separate df for fmin/foF2 (because times don't match up)
+            qs_fmin = qs_df[qs_df["Parameter"] == "fmin"]
+            qs_fof2 = qs_df[qs_df["Parameter"] == "foF2"]
+            
+            # Ensure values are sorted before merging
+            qs_fmin = qs_fmin.sort_values("JamDec").reset_index()
+            qs_fof2 = qs_fmin.sort_values("JamDec").reset_index()
+            
+            # Possible that merged JamDec of fmin and fof2 are same
+            merged_fmin_df = pd.merge_asof(
+                manual_df,
+                qs_fmin,
+                left_on="time_as_float",
+                right_on="JamDec",
+                direction="nearest",
+                suffixes=('_A', '_B')
+            )
+            merged_fof2_df = pd.merge_asof(
+                manual_df,
+               qs_fof2,
+                left_on="time_as_float",
+                right_on="JamDec",
+                direction="nearest",
+                suffixes=('_A', '_B')
+            )
+
+            # Deal with missing foES, foF2
+            missing_foes_and_fof2_manual = merged_fof2_df[["foES", "foF2"]].isna().all(axis=1)
+            merged_fof2_df = merged_fof2_df[~missing_foes_and_fof2_manual]
+            merged_fof2_df["foES_foF2"] = np.where(merged_fof2_df["foF2"].notna(), merged_fof2_df["foF2"], merged_fof2_df["foES"]) # Create a column pulling from foF2 or fmin
+
+            # Deal with missing fmin
+            missing_fmin_manual = merged_fmin_df["fmin"].isna()
+            merged_fmin_df = merged_fmin_df[~missing_fmin_manual]
+
+            # For first iteration, we can only update total values, sum of values, and top RSE
+            if i == 0:
+                # Get total and sum of values in ground truth (manual) of current test item
+                current_total_values = len(merged_fmin_df)+len(merged_fof2_df)
+                current_sum_manual = merged_fmin_df["fmin"].sum() + merged_fof2_df["foES_foF2"].sum()
+
+                # Update global values
+                global_total_values += current_total_values
+                global_sum_manual += current_sum_manual
+
+                # Calculate numerator of RSE and update global value
+                current_top_rse = (
+                    (merged_fmin_df["fmin"] - merged_fmin_df["Nilai"])**2 +
+                    (merged_fof2_df["foES_foF2"] - merged_fof2_df["Nilai"])**2
+                ).sum()
+                global_top_rse += current_top_rse
+
+                # Calculating range to get context of RMSE
+                # We can assume fmin will always contain the absolute min and foES/foF2 will contain absolute max values
+                current_min = merged_fmin_df["Nilai"].min()
+                current_max = merged_fof2_df["Nilai"].max()
+                target_range["min"] = current_min if current_min < target_range["min"] else target_range["min"]
+                target_range["max"] = current_max if current_max > target_range["max"] else target_range["max"]
+
+            # In the second iteration, we have global mean, so we can calculate bot RSE
+            else:
+                current_bot_rse = (
+                    (merged_fmin_df["fmin"] - global_mean_manual)**2 +
+                    (merged_fof2_df["foES_foF2"] - global_mean_manual)**2
+                ).sum()
+                global_bot_rse += current_bot_rse
+
+                # Also calculate MSE in 2nd iteration
+                current_mse = (
+                    (merged_fmin_df["fmin"] - merged_fmin_df["Nilai"])**2 +
+                    (merged_fof2_df["foES_foF2"] - merged_fof2_df["Nilai"])**2
+                ).sum()
+                global_mse += current_mse
+
+        # After first iteration, sum and total will be calculated for all test items
+        if i == 0:
+            # We can now update global mean
+            global_mean_manual = global_sum_manual / global_total_values
+        # In the second iteration, we can calculate final RSE
+        else:
+            # Calculating RMSE
+            final_rse = global_top_rse / global_bot_rse
+            final_rmse = np.sqrt(global_mse / global_total_values)
+            global_min = target_range["min"]
+            global_max = target_range["max"]
+            final_range = global_max - global_min
+
+    return round(final_rse, 3), round(final_rmse, 3), round(global_min, 3), round(global_max, 3), round(final_range, 3)
+
+
+def get_metrics_single_quickscale_with_manual(path_to_manual_csv: str, path_to_quickscale_csv: str):
+    """
+    1. split qs into fmin and fof2
+    2. merge manual with fmin and fof2 (separately but possible that JamDec values are same)
+    """
+    manual_df = pd.read_csv(path_to_manual_csv)
+    qs_df = pd.read_csv(path_to_quickscale_csv)
+
+    # Add time (float) column to manual
+    manual_df["time_as_float"] = np.arange(0.0, 24, 0.25) 
+
+    # Split qs into separate df for fmin/foF2 (because times don't match up)
+    qs_fmin = qs_df[qs_df["Parameter"] == "fmin"]
+    qs_fof2 = qs_df[qs_df["Parameter"] == "foF2"]
+    
+    # Ensure values are sorted before merging
+    qs_fmin = qs_fmin.sort_values("JamDec").reset_index()
+    qs_fof2 = qs_fmin.sort_values("JamDec").reset_index()
+    
+    # Possible that merged JamDec of fmin and fof2 are same
+    merged_fmin_df = pd.merge_asof(
+        manual_df,
+        qs_fmin,
+        left_on="time_as_float",
+        right_on="JamDec",
+        direction="nearest",
+        suffixes=('_A', '_B')
+    )
+    merged_fof2_df = pd.merge_asof(
+        manual_df,
+        qs_fof2,
+        left_on="time_as_float",
+        right_on="JamDec",
+        direction="nearest",
+        suffixes=('_A', '_B')
+    )
+
+    # Deal with missing foES, foF2
+    missing_foes_and_fof2_manual = merged_fof2_df[["foES", "foF2"]].isna().all(axis=1)
+    merged_fof2_df = merged_fof2_df[~missing_foes_and_fof2_manual]
+    merged_fof2_df["foES_foF2"] = np.where(merged_fof2_df["foF2"].notna(), merged_fof2_df["foF2"], merged_fof2_df["foES"]) # Create a column pulling from foF2 or fmin
+
+    # Deal with missing fmin
+    missing_fmin_manual = merged_fmin_df["fmin"].isna()
+    merged_fmin_df = merged_fmin_df[~missing_fmin_manual]
+
+    total_values = len(merged_fmin_df)+len(merged_fof2_df)
+
+    # Calculating RSE
+    # We pull from the same df, with ground truth column being "fmin/foF2/foES" and predicted being "Nilai"
+    mean_manual = (merged_fmin_df["fmin"].sum() + merged_fof2_df["foF2"].sum()) / total_values
+    top_rse, bot_rse = 0, 0
+    top_rse = (
+        (merged_fmin_df["fmin"] - merged_fmin_df["Nilai"])**2 +
+        (merged_fof2_df["foES_foF2"] - merged_fof2_df["Nilai"])**2
+    ).sum()
+    bot_rse = (
+        (merged_fmin_df["fmin"] - mean_manual)**2 +
+        (merged_fof2_df["foES_foF2"] - mean_manual)**2
+    ).sum()
+    rse = top_rse / bot_rse
+
+    # Calculating RMSE
+    mse = (
+        (merged_fmin_df["fmin"] - merged_fmin_df["Nilai"])**2 +
+        (merged_fof2_df["foES_foF2"] - merged_fof2_df["Nilai"])**2
+    ).sum() / total_values
+    rmse = np.sqrt(mse)
+
+    gmin = merged_fmin_df["Nilai"].min()
+    gmax = merged_fof2_df["Nilai"].max()
+    grange = gmax-gmin
+
+    return round(rse, 3), round(rmse, 3), round(gmin, 3), round(gmax, 3), round(grange, 3)
 
 if __name__ == "__main__":
-    # Turn manual into plots/masks
+    ## Turn manual into plots/masks
     #table_to_stacked_bar_plot_manual()
     #table_to_scatter_plot_manual()
 
-    # Original manual data was grouped into months
+    ## Original manual data was grouped into months
     #separate_month_into_days()
 
-    # Preparing 
-    version = "v22"
-    path_to_numeric_csv_dir = f"./predictions/numeric_csv/original/{version}"
+    ## Get eval metrics between numeric and manual
+    #version = "v22"
+    #path_to_numeric_csv_dir = f"./predictions/numeric_csv/original/{version}"
     path_to_manual_dir = "./dataset/data_scaling_manual/data_raw"
+    #path_to_save_numeric_csv_dir = f"./predictions/numeric_csv/prepared_for_numeric_eval/{version}"
+    #path_to_save_manual_dir = f"./dataset/data_scaling_manual/data_raw/prepared_for_numeric_eval/{version}"
+    ## Preparing numeric and manual
+    #prepare_manual_and_numeric_for_evaluation(path_to_numeric_csv_dir, path_to_manual_dir, path_to_save_numeric_csv_dir, path_to_save_manual_dir)
+    ## Getting metrics
+    #RSE, RMSE, gmin, gmax, grange = get_metrics_all_numeric_with_manual(path_to_save_numeric_csv_dir, path_to_save_manual_dir)
+    #print(RSE, RMSE, gmin, gmax, grange)
 
-    path_to_save_numeric_csv_dir = f"./predictions/numeric_csv/prepared_for_numeric_eval/{version}"
-    path_to_save_manual_dir = f"./dataset/data_scaling_manual/data_raw/prepared_for_numeric_eval/{version}"
-    prepare_manual_and_numeric_for_evaluation(path_to_numeric_csv_dir, path_to_manual_dir, path_to_save_numeric_csv_dir, path_to_save_manual_dir)
-
-    RSE, RMSE, gmin, gmax, grange = get_metrics_all_numeric_with_manual(path_to_save_numeric_csv_dir, path_to_save_manual_dir)
+    # Get eval metrics between quickscale and manual
+    path_to_quickscale_dir = "./dataset/data_pak_jiyo"
+    path_to_manual_days_dir = "./dataset/data_scaling_manual/data_raw/days"
+    RSE, RMSE, gmin, gmax, grange = get_metrics_all_quickscale_with_manual(path_to_manual_days_dir, path_to_quickscale_dir)
     print(RSE, RMSE, gmin, gmax, grange)

@@ -33,7 +33,7 @@ Todo:
         - (DONE) get predictions (inference/get_prediction_tensor)
         - (DONE) get mask from prediction and overlay (inference/convert_all_predictions_to_mask_and_overlay)
         - (DONE) overlay any mask to image
-        - turn manual to mask
+        - plot manual
         - (DONE) combine foes/fof2 in manual (eval_with_manual/prepare_manual_and_numeric_for_evaluation)
         - (DONE) automate getting metrics of model (eval_with_manual/get_metrics_all_numeric_with_manual)
     - functions to create
@@ -50,7 +50,7 @@ Todo:
         - (DONE) overlay of new models
         - (DONE) example of numeric plot over original
         - (DONE) rse, rmse of numeric of models with manual
-        - rse, rmse of quickscale
+        - (DONE) rse, rmse of quickscale
 
 Notes:
 - losses
@@ -83,6 +83,16 @@ Notes:
     3. get numeric from mask 
     4. prepare manual/numeric (need both because dependent on empty cells from both)
     5. get rse, rmse
+- numeric from predictions: the predicted mask has no concept of time.
+    so what is the best way to get data "every 15 minutes"? we could 
+    get a linspace of 0-24 (total 96) and then scale it up to the dims of the mask,
+    but what we chose to do was simply get a linspace of 0-mask_dim (total 96).
+- quickscale: since time for each fmin/foF2 is different, we will merge_asof fmin/foF2 separately
+    - comparing with manual will be on different times
+    because numeric has gaps but qs doesn't, so only filtering based on manual.
+    this shouldn't be a problem because we only want overall accuracy,
+    not accuracy on specific time
+
 
 Concerns:
 - what to do with fmin without fof2?
