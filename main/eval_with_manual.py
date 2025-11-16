@@ -319,6 +319,7 @@ def prepare_manual_and_numeric_for_evaluation(path_to_numeric_csv_dir: str, path
 
         # Get either foF2 or foES from manual, preferring foF2 if exists
         manual_df["foES_foF2"] = np.where(manual_df["foF2"].notna(), manual_df["foF2"], manual_df["foES"])
+        manual_df["time_as_float"] = numeric_df["time_as_float"]
 
         manual_df.columns.values[0] = "index"
         numeric_df.columns.values[0] = "index"
@@ -331,14 +332,18 @@ def prepare_manual_and_numeric_for_evaluation(path_to_numeric_csv_dir: str, path
 
 def get_metrics_all_numeric_with_manual(path_to_numeric_csv_dir: str, path_to_manual_dir: str):
     """
+    Get an aggregate metric of multiple files.
     """
     numeric_filenames = os.listdir(path_to_numeric_csv_dir)
 
-    global_top_rse, global_bot_rse, global_total_values, global_sum_manual, global_mean_manual = 0, 0, 0, 0, 0
+    global_top_rse, global_bot_rse, global_total_values, global_sum_manual, global_mean_manual, global_top_mbe = 0, 0, 0, 0, 0, 0
+    global_r_man, global_r_num = [], []
     global_mse = 0
     final_rse, final_rmse = 0, 0
     target_range = {"min": 100000, "max": 0}    # Setting min to arbitrarily high value to compare with real mins
     final_range, global_min, global_max = 0, 0, 0
+    final_r, final_mbe = 0, 0
+
     # Need to loop through entire dataset twice, first to calculate global_mean_manual then to calculate final RSE
     for i in range(2):
         for numeric_filename in numeric_filenames:
@@ -373,6 +378,16 @@ def get_metrics_all_numeric_with_manual(path_to_numeric_csv_dir: str, path_to_ma
                 target_range["min"] = current_min if current_min < target_range["min"] else target_range["min"]
                 target_range["max"] = current_max if current_max > target_range["max"] else target_range["max"]
 
+                global_top_mbe += (
+                    (numeric_df["fmin"] - manual_df["fmin"]) +
+                    (numeric_df["foF2"] - manual_df["foES_foF2"])
+                ).sum()
+
+                global_r_man.extend(manual_df["fmin"].tolist())
+                global_r_man.extend(manual_df["foES_foF2"].tolist())
+                global_r_num.extend(numeric_df["fmin"].tolist())
+                global_r_num.extend(numeric_df["foF2"].tolist())
+
             # In the second iteration, we have global mean, so we can calculate bot RSE
             else:
                 current_bot_rse = (
@@ -400,17 +415,108 @@ def get_metrics_all_numeric_with_manual(path_to_numeric_csv_dir: str, path_to_ma
             global_min = target_range["min"]
             global_max = target_range["max"]
             final_range = global_max - global_min
+            final_mbe = global_top_mbe / global_total_values 
+            final_r = np.corrcoef(global_r_man, global_r_num)[0, 1]
 
-    return round(final_rse, 3), round(final_rmse, 3), round(global_min, 3), round(global_max, 3), round(final_range, 3)
+    return round(final_rse, 3), round(final_rmse, 3), round(global_min, 3), round(global_max, 3), round(final_range, 3), round(final_mbe, 3), round(final_r, 3)
+    
+def get_metrics_fof2_numeric_with_manual(path_to_numeric_csv_dir: str, path_to_manual_dir: str):
+    """
+    Get an aggregate metric of multiple files.
+    """
+    numeric_filenames = os.listdir(path_to_numeric_csv_dir)
+
+    global_top_rse, global_bot_rse, global_total_values, global_sum_manual, global_mean_manual, global_top_mbe = 0, 0, 0, 0, 0, 0
+    global_r_man, global_r_num = [], []
+    global_mse = 0
+    final_rse, final_rmse = 0, 0
+    target_range = {"min": 100000, "max": 0}    # Setting min to arbitrarily high value to compare with real mins
+    final_range, global_min, global_max = 0, 0, 0
+    final_r, final_mbe = 0, 0
+
+    # Need to loop through entire dataset twice, first to calculate global_mean_manual then to calculate final RSE
+    for i in range(2):
+        for numeric_filename in numeric_filenames:
+            # Ignore .DS_Store
+            if numeric_filename.startswith("."):
+                continue
+            numeric_path = os.path.join(path_to_numeric_csv_dir, numeric_filename)
+            numeric_df = pd.read_csv(numeric_path)
+            manual_df = pd.read_csv(os.path.join(path_to_manual_dir, numeric_filename))
+
+            # For first iteration, we can only update total values, sum of values, and top RSE
+            if i == 0:
+                # Get total and sum of values in ground truth (manual) of current test item
+                current_total_values = len(manual_df)
+                current_sum_manual = manual_df["foES_foF2"].sum()
+
+                # Update global values
+                global_total_values += current_total_values
+                global_sum_manual += current_sum_manual
+
+                # Calculate numerator of RSE and update global value
+                current_top_rse = (
+                    (manual_df["foES_foF2"] - numeric_df["foF2"])**2
+                ).sum()
+                global_top_rse += current_top_rse
+
+                # Calculating range to get context of RMSE
+                # We can assume fmin will always contain the absolute min and foES/foF2 will contain absolute max values
+                current_min = numeric_df["foF2"].min()
+                current_max = numeric_df["foF2"].max()
+                target_range["min"] = current_min if current_min < target_range["min"] else target_range["min"]
+                target_range["max"] = current_max if current_max > target_range["max"] else target_range["max"]
+
+                global_top_mbe += (
+                    (numeric_df["foF2"] - manual_df["foES_foF2"])
+                ).sum()
+
+                global_r_man.extend(manual_df["foES_foF2"].tolist())
+                global_r_num.extend(numeric_df["foF2"].tolist())
+
+            # In the second iteration, we have global mean, so we can calculate bot RSE
+            else:
+                current_bot_rse = (
+                    (manual_df["foES_foF2"] - global_mean_manual)**2
+                ).sum()
+                global_bot_rse += current_bot_rse
+
+                # Also calculate MSE in 2nd iteration
+                current_mse = (
+                    (manual_df["foES_foF2"] - numeric_df["foF2"])**2
+                ).sum()
+                global_mse += current_mse
+
+
+        # After first iteration, sum and total will be calculated for all test items
+        if i == 0:
+            # We can now update global mean
+            global_mean_manual = global_sum_manual / global_total_values
+        # In the second iteration, we can calculate final RSE
+        else:
+            # Calculating RMSE
+            final_rse = global_top_rse / global_bot_rse
+            final_rmse = np.sqrt(global_mse / global_total_values)
+            global_min = target_range["min"]
+            global_max = target_range["max"]
+            final_range = global_max - global_min
+            final_mbe = global_top_mbe / global_total_values 
+            final_r = np.corrcoef(global_r_man, global_r_num)[0, 1]
+
+    return round(final_rse, 3), round(final_rmse, 3), round(global_min, 3), round(global_max, 3), round(final_range, 3), round(final_mbe, 3), round(final_r, 3)
 
 def get_metrics_single_numeric_with_manual(path_to_numeric_csv: str, path_to_manual_csv: str):
     numeric_df = pd.read_csv(path_to_numeric_csv)
     manual_df = pd.read_csv(path_to_manual_csv)
 
     total_values = 2*len(manual_df)
+    
+    if total_values == 0:
+        return np.nan * 6
 
     # Calculating RSE
     mean_manual = (manual_df["fmin"].sum() + manual_df["foES_foF2"].sum()) / total_values
+    mean_numeric = (numeric_df["fmin"].sum() + numeric_df["foF2"].sum()) / total_values
     top_rse, bot_rse = 0, 0
     top_rse = (
         (manual_df["fmin"] - numeric_df["fmin"])**2 +
@@ -433,7 +539,10 @@ def get_metrics_single_numeric_with_manual(path_to_numeric_csv: str, path_to_man
     gmax = numeric_df["foF2"].max()
     grange = gmax-gmin
 
-    return round(rse, 3), round(rmse, 3), round(gmin, 3), round(gmax, 3), round(grange, 3)
+    correlation_matrix = np.corrcoef(manual_df[["fmin", "foES_foF2"]].to_numpy().flatten(), numeric_df[["fmin", "foF2"]].to_numpy().flatten())
+    r = correlation_matrix[0, 1]
+
+    return round(rse, 3), round(rmse, 3), round(gmin, 3), round(gmax, 3), round(grange, 3), round(r, 3)
 
 def get_metrics_all_quickscale_with_manual(path_to_manual_days_dir: str, path_to_quickscale_dir: str):
     """
@@ -547,11 +656,8 @@ def get_metrics_all_quickscale_with_manual(path_to_manual_days_dir: str, path_to
 
     return round(final_rse, 3), round(final_rmse, 3), round(global_min, 3), round(global_max, 3), round(final_range, 3)
 
-
 def get_metrics_single_quickscale_with_manual(path_to_manual_csv: str, path_to_quickscale_csv: str):
     """
-    1. split qs into fmin and fof2
-    2. merge manual with fmin and fof2 (separately but possible that JamDec values are same)
     """
     manual_df = pd.read_csv(path_to_manual_csv)
     qs_df = pd.read_csv(path_to_quickscale_csv)
@@ -632,19 +738,26 @@ if __name__ == "__main__":
     #separate_month_into_days()
 
     ## Get eval metrics between numeric and manual
-    #version = "v22"
-    #path_to_numeric_csv_dir = f"./predictions/numeric_csv/original/{version}"
+    version = "v28"
+    path_to_numeric_csv_dir = f"./predictions/numeric_csv/original/{version}"
     path_to_manual_dir = "./dataset/data_scaling_manual/data_raw"
-    #path_to_save_numeric_csv_dir = f"./predictions/numeric_csv/prepared_for_numeric_eval/{version}"
-    #path_to_save_manual_dir = f"./dataset/data_scaling_manual/data_raw/prepared_for_numeric_eval/{version}"
+    path_to_save_prepared_numeric_csv_dir = f"./predictions/numeric_csv/prepared_for_numeric_eval/{version}"
+    path_to_save_prepared_manual_dir = f"./dataset/data_scaling_manual/data_raw/prepared_for_numeric_eval/{version}"
     ## Preparing numeric and manual
-    #prepare_manual_and_numeric_for_evaluation(path_to_numeric_csv_dir, path_to_manual_dir, path_to_save_numeric_csv_dir, path_to_save_manual_dir)
-    ## Getting metrics
-    #RSE, RMSE, gmin, gmax, grange = get_metrics_all_numeric_with_manual(path_to_save_numeric_csv_dir, path_to_save_manual_dir)
-    #print(RSE, RMSE, gmin, gmax, grange)
+    #prepare_manual_and_numeric_for_evaluation(path_to_numeric_csv_dir, path_to_manual_dir, path_to_save_prepared_numeric_csv_dir, path_to_save_prepared_manual_dir)
+
+    # Getting metrics between model and manual
+    RSE, RMSE, gmin, gmax, grange, MBE, R = get_metrics_all_numeric_with_manual(path_to_save_prepared_numeric_csv_dir, path_to_save_prepared_manual_dir)
+    metrics_all_data = {"RSE": RSE, "RMSE": RMSE, "MIN": gmin, "MAX": gmax, "RANGE": grange, "MBE": MBE, "R": R}
+    pd.Series(metrics_all_data).to_csv(f"./evaluations/{version}/metrics_all_data.csv")
+
+    # Getting foF2 metrics on all data
+    #RSE, RMSE, gmin, gmax, grange, R, MBE = get_metrics_fof2_numeric_with_manual(path_to_save_prepared_numeric_csv_dir, path_to_save_prepared_manual_dir)
+    #metrics_all_data = {"RSE": RSE, "RMSE": RMSE, "MIN": gmin, "MAX": gmax, "RANGE": grange, "R": R, "MBE": MBE}
+    #pd.Series(metrics_all_data).to_csv(f"./evaluations/{version}/metrics_all_data_fof2_only.csv")
 
     # Get eval metrics between quickscale and manual
-    path_to_quickscale_dir = "./dataset/data_pak_jiyo"
-    path_to_manual_days_dir = "./dataset/data_scaling_manual/data_raw/days"
-    RSE, RMSE, gmin, gmax, grange = get_metrics_all_quickscale_with_manual(path_to_manual_days_dir, path_to_quickscale_dir)
-    print(RSE, RMSE, gmin, gmax, grange)
+    #path_to_quickscale_dir = "./dataset/data_pak_jiyo"
+    #path_to_manual_days_dir = "./dataset/data_scaling_manual/data_raw/days"
+    #RSE, RMSE, gmin, gmax, grange = get_metrics_all_quickscale_with_manual(path_to_manual_days_dir, path_to_quickscale_dir)
+    #print(RSE, RMSE, gmin, gmax, grange)

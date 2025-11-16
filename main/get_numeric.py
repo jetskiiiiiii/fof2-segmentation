@@ -133,7 +133,7 @@ def plot_numeric(path_to_csv: str, path_to_save: str):
     plt.close()
 
 if __name__ == "__main__":
-    version = "v22"
+    version = "v28"
     mask_directory = f"./predictions/mask/{version}"
     mask_filenames = os.listdir(mask_directory)
 
@@ -144,11 +144,11 @@ if __name__ == "__main__":
         if root == ".DS_Store":
             continue
         path_to_mask = os.path.join(mask_directory, mask_filenames[index])
-        path_to_save_csv = f"./predictions/numeric_csv/{version}/{root}.csv"
+        path_to_save_csv = f"./predictions/numeric_csv/original/{version}/{root}.csv"
         path_to_save_plot = f"./predictions/numeric_plot/{version}/{root}.jpg"
         path_to_save_plot_overlay = f"./predictions/numeric_plot_overlay/{version}/{root}.jpg"
 
-        path_to_test_images = f"./dataset/test/test_images/{mask_filenames[index]}"
+        path_to_test_images = f"./dataset/2020_all/2020_all_images/{mask_filenames[index]}"
 
         get_numeric_as_csv(path_to_mask, path_to_save_csv)
         plot_numeric(path_to_save_csv, path_to_save_plot)

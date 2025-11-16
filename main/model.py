@@ -64,15 +64,18 @@ class FO2Model(L.LightningModule):
 
     def handle_epoch_end(self, outputs, stage):
         mean_loss = torch.stack([x["loss"] for x in outputs]).mean()
-        true_positive = torch.cat([x["true_positive"] for x in outputs])
-        false_positive = torch.cat([x["false_positive"] for x in outputs])
-        false_negative = torch.cat([x["false_negative"] for x in outputs])
-        true_negative = torch.cat([x["true_negative"] for x in outputs])
+
+        true_positive = torch.cat([x["true_positive"] for x in outputs]).long()
+        false_positive = torch.cat([x["false_positive"] for x in outputs]).long()
+        false_negative = torch.cat([x["false_negative"] for x in outputs]).long()
+        true_negative = torch.cat([x["true_negative"] for x in outputs]).long()
 
         dataset_iou = smp.metrics.iou_score(true_positive, false_positive, false_negative, true_negative, reduction="micro")
+        dataset_dice = smp.metrics.f1_score(true_positive, false_positive, false_negative, true_negative, reduction="micro")
         metrics = {
             f"{stage}_loss": mean_loss,
-            f"{stage}_dataset_iou": dataset_iou,
+            f"{stage}_iou": dataset_iou,
+            f"{stage}_f1_score": dataset_dice
         }
 
         self.log_dict(metrics, prog_bar=True)
@@ -114,7 +117,8 @@ class FO2Model(L.LightningModule):
         return ([optimizer], [learning_rate_scheduler])
 
     def predict_step(self, batch, batch_idx):
-        inputs, target, filename = batch
+        inputs = batch
+        #inputs, target, filename = batch
         logits_mask = self.forward(inputs)
 
         probability_mask = logits_mask.sigmoid()

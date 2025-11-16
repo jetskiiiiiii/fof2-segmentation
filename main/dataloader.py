@@ -3,14 +3,14 @@ from dataset import FTIDataset
 from transformation import train_transformation, eval_transformation
 
 # Directories
-image_train_path = "./dataset/train/train_images"
-mask_train_path = "./dataset/train/train_masks"
+image_train_path = "./dataset/train_2019_only/train_2019_only_images"
+mask_train_path = "./dataset/train_2019_only/train_2019_only_masks"
 
-image_val_path = "./dataset/val/val_images"
-mask_val_path = "./dataset/val/val_masks"
+image_val_path = "./dataset/val_2019_only/val_2019_only_images"
+mask_val_path = "./dataset/val_2019_only/val_2019_only_masks"
 
-image_test_path = "./dataset/test/test_images"
-mask_test_path = "./dataset/test/test_masks"
+image_test_path = "./dataset/2020_all/2020_all_images"
+mask_test_path = "./dataset/2020_all/2020_all_masks"
 
 # datasets
 train_data = FTIDataset(

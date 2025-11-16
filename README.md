@@ -51,6 +51,18 @@ Todo:
         - (DONE) example of numeric plot over original
         - (DONE) rse, rmse of numeric of models with manual
         - (DONE) rse, rmse of quickscale
+- for 09/14
+    - plot manual
+    - (DONE) get dice Coefficient of fpn 
+    - get metrics similar to quickscale paper (nighttime/daytime/seasonal)
+        - per month, time (use single_eval)
+        - per season, day/night (use modified all_eval)
+        - all (use all_eval)
+    - make app to quickly get numeric plot/csv
+    - questions for pak varul
+        - RMSE, MSE
+        - graphs missing 1 month
+        - graphs are per month/time?
 
 Notes:
 - losses
@@ -77,12 +89,18 @@ Notes:
     - v20: fpn, resized images, 2019/2020, 15 Es
     - v21: deeplabv3, resized images, 2019/2020, 15 Es
     - v22: unet, resized images, 2019/2020, 15 Es
+    - v23: fpn, resized images, 2019/2020, 10 Es, f1
+    - v24: deeplab, resized images, 2019/2020, 10 Es, f1
+    - v25: unet, resized images, 2019/2020, 10 Es, f1
+    - v26: unet, resized images, 2019 only, 10 Es, f1
+    - v27: deeplab, resized images, 2019 only, 10 Es, f1
+    - v28: fpn, resized images, 2019 only, 10 Es, f1
 - post pipeline:
-    1. predict
-    2. get mask
-    3. get numeric from mask 
-    4. prepare manual/numeric (need both because dependent on empty cells from both)
-    5. get rse, rmse
+    1. predict (inference.py)
+    2. get mask and overlay (inference.py)
+    3. get numeric from mask (get_numeric.py)
+    4. prepare manual/numeric (need both because dependent on empty cells from both) (eval_with_manual.py)
+    5. get rse, rmse (eval_with_manual.py)
 - numeric from predictions: the predicted mask has no concept of time.
     so what is the best way to get data "every 15 minutes"? we could 
     get a linspace of 0-24 (total 96) and then scale it up to the dims of the mask,

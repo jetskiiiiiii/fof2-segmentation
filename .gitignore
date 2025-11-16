@@ -7,3 +7,5 @@ logs/
 predictions/
 dataset/data_scaling_manual/.DS_Store
 dataset/
+temp_app_files/
+evaluations/

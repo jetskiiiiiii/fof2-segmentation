@@ -8,6 +8,17 @@ import matplotlib.image as mpimg
 from model import FO2Model
 from dataloader import test_loader
 
+def predict_single(path_to_model: str, image):
+    model = FO2Model.load_from_checkpoint(path_to_model)
+    model.eval()
+    model.freeze()
+
+    # Using predict_step
+    trainer = L.Trainer()
+    predictions = trainer.predict(model, dataloaders=test_loader) # Returns list containing one Tensor of torch.Size([13, 1, 640, 640])
+
+    torch.save(predictions, path_to_save)
+
 def get_prediction_tensor(path_to_model: str, path_to_save: str):
     """
     Only performs inference on test data and saves predictions as tensor.
@@ -146,7 +157,7 @@ def overlay_single_mask_with_image(path_to_mask: str, path_to_save: str, index: 
     plt.close()
 
 if __name__ == "__main__":
-    version = "v22"
+    version = "v28"
     model_path = f"./logs/training_log/{version}/checkpoints/{version}.ckpt"
 
     path_to_save_prediction_tensor = f"./predictions/prediction_tensor/{version}/{version}_prediction_tensor.pt"
