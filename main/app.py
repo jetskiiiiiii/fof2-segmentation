@@ -3,6 +3,7 @@ import torch
 import numpy as np
 import gradio as gr
 from PIL import Image
+from huggingface_hub import hf_hub_download
 
 from get_numeric import get_numeric_as_csv
 from model import FO2Model
@@ -10,9 +11,13 @@ from transformation import eval_transformation
 
 DEVICE = "cpu"
 
-version = "v28"
-model_path = f"./logs/training_log/{version}/checkpoints/{version}.ckpt"
-model = FO2Model.load_from_checkpoint(model_path)
+HF_MODEL_ID = "jetski22/fpn_fof2"
+CHECKPOINT_FILENAME = "v28.ckpt"
+model_path = hf_hub_download(
+    repo_id=HF_MODEL_ID,
+    filename=CHECKPOINT_FILENAME,
+)
+model = FO2Model.load_from_checkpoint(CHECKPOINT_FILENAME)
 model.to(DEVICE)
 model.eval()
 

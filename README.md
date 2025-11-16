@@ -1,3 +1,9 @@
+---
+title: fof2-segmentation
+app_file: main/app.py
+sdk: gradio
+sdk_version: 4.44.1
+---
 foF2 segmentation project for BRIN
 
 files -> dataloader (-> dataset (-> transformations)) -> trainer
