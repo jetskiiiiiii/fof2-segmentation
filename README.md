@@ -1,9 +1,3 @@
----
-title: fof2-segmentation
-app_file: main/app.py
-sdk: gradio
-sdk_version: 4.44.1
----
 foF2 segmentation project for BRIN
 
 files -> dataloader (-> dataset (-> transformations)) -> trainer
@@ -58,13 +52,13 @@ Todo:
         - (DONE) rse, rmse of numeric of models with manual
         - (DONE) rse, rmse of quickscale
 - for 09/14
-    - plot manual
+    - (no point) plot manual
     - (DONE) get dice Coefficient of fpn 
-    - get metrics similar to quickscale paper (nighttime/daytime/seasonal)
+    - (DONE) get metrics similar to quickscale paper (nighttime/daytime/seasonal)
         - per month, time (use single_eval)
         - per season, day/night (use modified all_eval)
         - all (use all_eval)
-    - make app to quickly get numeric plot/csv
+    - (DONE) make app to quickly get numeric plot/csv
     - questions for pak varul
         - RMSE, MSE
         - graphs missing 1 month
