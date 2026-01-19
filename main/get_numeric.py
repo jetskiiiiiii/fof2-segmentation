@@ -133,7 +133,7 @@ def plot_numeric(path_to_csv: str, path_to_save: str):
     plt.close()
 
 if __name__ == "__main__":
-    version = "v28"
+    version = "v31"
     mask_directory = f"./predictions/mask/{version}"
     mask_filenames = os.listdir(mask_directory)
 

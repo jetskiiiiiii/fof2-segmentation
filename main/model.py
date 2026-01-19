@@ -46,13 +46,19 @@ class FO2Model(L.LightningModule):
         # Must be true to correctly calculate IoU score
         assert torch.all((mask == 0) | (mask == 1)) # False
 
+        binary_mask = (mask > 0.5).float()
         logits_mask = self.forward(image)
         loss = self.loss(logits_mask, mask)
         
-        # Calculate IoU score
+        # Calculate metrics
         outputs = logits_mask.sigmoid()
         outputs = (outputs > self.threshold).float()
-        true_positive, false_positive, false_negative, true_negative = smp.metrics.get_stats(outputs.long(), mask.long(), mode="binary")
+
+        # Using binary mask to ensure targets are strictly 0, 1
+        true_positive, false_positive, false_negative, true_negative = smp.metrics.get_stats(
+            outputs.long(),
+            binary_mask.long(), 
+            mode="binary")
 
         return {
             "loss": loss, 
@@ -113,12 +119,12 @@ class FO2Model(L.LightningModule):
     def configure_optimizers(self):
         # TODO: Unsure of what to use here
         optimizer = torch.optim.Adam(self.parameters(), lr=1e-4)
-        learning_rate_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=20)
+        learning_rate_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=10)
         return ([optimizer], [learning_rate_scheduler])
 
     def predict_step(self, batch, batch_idx):
-        inputs = batch
-        #inputs, target, filename = batch
+        #inputs = batch
+        inputs, target, filename = batch
         logits_mask = self.forward(inputs)
 
         probability_mask = logits_mask.sigmoid()

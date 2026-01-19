@@ -6,12 +6,14 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 
 from model import FO2Model
-from dataloader import test_loader
+from dataloader import data_no_split
 
 def predict_single(path_to_model: str, image):
     model = FO2Model.load_from_checkpoint(path_to_model)
     model.eval()
     model.freeze()
+
+    _, _, test_loader = data_no_split(8)
 
     # Using predict_step
     trainer = L.Trainer()
@@ -28,6 +30,8 @@ def get_prediction_tensor(path_to_model: str, path_to_save: str):
     model.eval()
     model.freeze()
 
+    _, _, test_loader = data_no_split(8)
+
     # Using predict_step
     trainer = L.Trainer()
     predictions = trainer.predict(model, dataloaders=test_loader) # Returns list containing one Tensor of torch.Size([13, 1, 640, 640])
@@ -38,6 +42,8 @@ def convert_all_predictions_to_mask_and_overlay(path_to_prediction_tensor: str, 
     """
     Converts entire prediction tensor to masks and overlays.
     """
+    _, _, test_loader = data_no_split(8)
+
     predictions = torch.load(path_to_prediction_tensor, weights_only=False)
 
     dpi = 100
@@ -96,6 +102,8 @@ def convert_single_prediction_to_mask(path_to_prediction_tensor: str, path_to_sa
     batch_idx = index // num_batch - 1
     index = index % num_batch 
 
+    _, _, test_loader = data_no_split(8)
+
     batch = next(iter(test_loader))
     filename = batch[2][index]
 
@@ -124,6 +132,7 @@ def overlay_single_mask_with_image(path_to_mask: str, path_to_save: str, index: 
     """
     Overlays mask with original image.
     """
+    _, _, test_loader = data_no_split(8)
     batch = next(iter(test_loader))
     image_tensor = batch[0]
     single_image_tensor = image_tensor[index]
@@ -156,8 +165,15 @@ def overlay_single_mask_with_image(path_to_mask: str, path_to_save: str, index: 
     plt.savefig(path_to_save, format='jpg', pad_inches=0)
     plt.close()
 
-if __name__ == "__main__":
-    version = "v28"
+def prediction_pipeline():
+    """
+    1. Set model name to vX
+    2. Create folders
+        - prediction/prediction_tensor
+        - prediction/mask
+        - prediction/overlay
+    """
+    version = "v32"
     model_path = f"./logs/training_log/{version}/checkpoints/{version}.ckpt"
 
     path_to_save_prediction_tensor = f"./predictions/prediction_tensor/{version}/{version}_prediction_tensor.pt"
@@ -166,3 +182,6 @@ if __name__ == "__main__":
     path_to_save_mask = f"./predictions/mask/{version}"
     path_to_save_overlay = f"./predictions/overlay/{version}"
     convert_all_predictions_to_mask_and_overlay(path_to_save_prediction_tensor, path_to_save_mask, path_to_save_overlay)
+
+if __name__ == "__main__":
+    prediction_pipeline()

@@ -286,14 +286,101 @@ def separate_month_into_days():
                 day_df = day_df.reset_index(drop=False)
                 day_df.to_csv(f"{path_to_save_days_df}/{i//96+1}-{month}-{year}.csv", index=False)
 
-def prepare_manual_and_numeric_for_evaluation(path_to_numeric_csv_dir: str, path_to_manual_dir: str, path_to_save_numeric_csv_dir: str, path_to_save_manual_dir: str):
+def separate_month_into_days_2019():
+    """
+    Original manual data is compiled of all days in month.
+    This function separates those days into their own CSVs.
+    """
+    path_to_save_days_df = "./dataset/data_scaling_manual/2019/days"
+    manual_data_path = "./dataset/data_scaling_manual/2019/months"
+    manual_data_filenames = os.listdir(manual_data_path)
+    
+    year = 2019
+    for filename in manual_data_filenames:
+        month, _ = os.path.splitext(filename)
+
+        path_to_monthly_data = os.path.join(manual_data_path, filename)
+        month_df = pd.read_csv(path_to_monthly_data)
+
+        #print(True if len(month_df) % 96 == 0 else False)
+        for i in range(0, len(month_df), 96):
+            day_df = month_df.loc[i:i+95, ["UT+7", "fmin", "foES", "foF2"]]
+            if len(day_df) % 96 == 0:
+                # Calling reset_index twice to first discard old indexing from original and then to convert new created index into a data column
+                day_df = day_df.reset_index(drop=True)
+                day_df = day_df.reset_index(drop=False)
+                day_df.to_csv(f"{path_to_save_days_df}/{i//96+1}-{month}-{year}.csv", index=False)
+
+def create_gaussian_heatmap_mask_from_manual():
+    """
+    Turns manual (ground truth) into gaussian masks for training.
+    """
+    print("Creating mask from manual.")
+
+    img_dim = 640
+    num_time_slots = 96
+    fof2_min, fof2_max = 0, 24
+    bin_width = img_dim / num_time_slots
+    thickness = 3
+
+    manual_data_path = "./dataset/data_scaling_manual/2019/days"
+    manual_data_filenames = os.listdir(manual_data_path)
+    save_path = "./dataset/data_scaling_manual/2019/masks"
+    
+    for filename in manual_data_filenames:
+        root, extension = os.path.splitext(filename)
+        if root == ".DS_Store":
+            continue
+        root = re.split(r"[-]", root)
+
+        df = pd.read_csv(f"{manual_data_path}/{filename}", encoding="ISO-8859-1")
+        mask = np.zeros((img_dim, img_dim), dtype=np.float32)
+
+        prev_point = None
+        
+        for i, (_, row) in enumerate(df.iterrows()):
+            if i >= num_time_slots:
+                break
+
+            fof2_val = row["foF2"]
+            fof2_val = float(fof2_val)
+
+            if pd.isna(fof2_val):
+                prev_point = None
+                continue
+
+            # Get max frequency as X coords
+            x_pixel = int((i * bin_width) + (bin_width / 2))
+
+            y_percent = (fof2_val - fof2_min) / (fof2_max  - fof2_min)
+            y_pixel = int(img_dim - (y_percent * img_dim))
+
+            curr_point = (x_pixel, y_pixel)
+
+            if prev_point is not None:
+                cv.line(mask, prev_point, curr_point, 255, thickness)
+            else:
+                cv.circle(mask, curr_point, thickness // 2, 255, -1)
+
+            prev_point = curr_point
+            
+        mask = cv.GaussianBlur(mask, (7, 7), 0) 
+        mask = mask.astype(np.uint8)
+        cv.imwrite(f"{save_path}/FTIF_LTPMP-{root[0]}-{root[1][0:3]}-{root[2]}.png", mask)
+
+    print("Done")
+
+
+
+def prepare_manual_and_numeric_for_evaluation_either_null(path_to_numeric_csv_dir: str, path_to_manual_dir: str, path_to_save_numeric_csv_dir: str, path_to_save_manual_dir: str):
     """
     Takes the original manual and numeric files and deals with missing foES, foF2 and fmin.
     Also adds combined foES_foF2 in manual.
+
+    Erases when either is null.
     """
     numeric_filenames = os.listdir(path_to_numeric_csv_dir)
 
-    # Need to loop through entire dataset twice, first to calculate global_mean_manual then to calculate final RSE
     for numeric_filename in numeric_filenames:
         split = re.split(r"[.-]", numeric_filename)
         if split[3] != "2020":
@@ -303,17 +390,21 @@ def prepare_manual_and_numeric_for_evaluation(path_to_numeric_csv_dir: str, path
         numeric_df = pd.read_csv(os.path.join(path_to_numeric_csv_dir, numeric_filename))
         manual_df = pd.read_csv(manual_filename)
 
+        # When dealing with missing values, if either manual or numeric is null, that time slot
+        # will not be included.
+
         # Deal with missing foES, foF2
         missing_foes_and_fof2_manual = manual_df[["foES", "foF2"]].isna().all(axis=1)
         missing_foes_and_fof2_numeric = numeric_df["foF2"].isna()
         manual_df = manual_df[~missing_foes_and_fof2_manual & ~missing_foes_and_fof2_numeric]
         numeric_df = numeric_df[~missing_foes_and_fof2_manual & ~missing_foes_and_fof2_numeric]
 
+        # Not erasing on fmins because we won't be comparing fmin
         # Deal with missing fmin
         missing_fmin_manual = manual_df["fmin"].isna()
         missing_fmin_numeric = numeric_df["fmin"].isna()
-        manual_df = manual_df[~missing_fmin_manual & ~missing_fmin_numeric]
-        numeric_df = numeric_df[~missing_fmin_manual & ~missing_fmin_numeric]
+        #manual_df = manual_df[~missing_fmin_manual & ~missing_fmin_numeric]
+        #numeric_df = numeric_df[~missing_fmin_manual & ~missing_fmin_numeric]
 
         assert len(manual_df) == len(numeric_df), "Error in filtering either manual or numeric."
 
@@ -329,6 +420,59 @@ def prepare_manual_and_numeric_for_evaluation(path_to_numeric_csv_dir: str, path
         manual_df.to_csv(f"{path_to_save_manual_dir}/{numeric_filename}", index=False)
         numeric_df.to_csv(f"{path_to_save_numeric_csv_dir}/{numeric_filename}", index=False)
 
+def prepare_manual_and_numeric_for_evaluation_both_null(path_to_numeric_csv_dir: str, path_to_manual_dir: str, path_to_save_numeric_csv_dir: str, path_to_save_manual_dir: str):
+    """
+    Takes the original manual and numeric files and deals with missing foES, foF2 and fmin.
+    Also adds combined foES_foF2 in manual.
+
+    Only erases when both are null.
+
+    When both are null, erase.
+    If only manual or numeric is null, set as 0.
+    """
+    numeric_filenames = os.listdir(path_to_numeric_csv_dir)
+
+    # Need to loop through entire dataset twice, first to calculate global_mean_manual then to calculate final RSE
+    for numeric_filename in numeric_filenames:
+        split = re.split(r"[.-]", numeric_filename)
+        if split[3] != "2020":
+            continue
+        manual_filename = f"{path_to_manual_dir}/days/{split[1]}-{split[2]}-{split[3]}.csv"
+
+        numeric_df = pd.read_csv(os.path.join(path_to_numeric_csv_dir, numeric_filename))
+        manual_df = pd.read_csv(manual_filename)
+
+        assert len(manual_df) == len(numeric_df)
+
+        # Get either foF2 or foES from manual, preferring foF2 if exists
+        manual_df["foES_foF2"] = np.where(manual_df["foF2"].notna(), manual_df["foF2"], manual_df["foES"])
+        manual_df["time_as_float"] = numeric_df["time_as_float"]
+
+        # Deal with missing foES, foF2
+        both_are_nan = pd.DataFrame({
+            "manual": manual_df["foES_foF2"],
+            "numeric": numeric_df["foF2"],
+        }).isna().all(axis=1)
+        manual_df = manual_df[~both_are_nan]
+        numeric_df = numeric_df[~both_are_nan]
+        manual_df["foES_foF2"] = manual_df["foES_foF2"].fillna(0)
+        numeric_df["foF2"] = numeric_df["foF2"].fillna(0)
+
+        # Deal with missing fmin
+        # Not doing this because QS method only did fof2
+        #missing_fmin_manual = manual_df["fmin"].isna()
+        #missing_fmin_numeric = numeric_df["fmin"].isna()
+        #manual_df = manual_df[~missing_fmin_manual & ~missing_fmin_numeric]
+        #numeric_df = numeric_df[~missing_fmin_manual & ~missing_fmin_numeric]
+
+        # Reseting index
+        manual_df.columns.values[0] = "index"
+        numeric_df.columns.values[0] = "index"
+        manual_df = manual_df.reset_index(drop=True)
+        numeric_df = numeric_df.reset_index(drop=True)
+
+        manual_df.to_csv(f"{path_to_save_manual_dir}/{numeric_filename}", index=False)
+        numeric_df.to_csv(f"{path_to_save_numeric_csv_dir}/{numeric_filename}", index=False)
 
 def get_metrics_all_numeric_with_manual(path_to_numeric_csv_dir: str, path_to_manual_dir: str):
     """
@@ -422,7 +566,7 @@ def get_metrics_all_numeric_with_manual(path_to_numeric_csv_dir: str, path_to_ma
     
 def get_metrics_fof2_numeric_with_manual(path_to_numeric_csv_dir: str, path_to_manual_dir: str):
     """
-    Get an aggregate metric of multiple files.
+    Get all metrics but only on foF2.
     """
     numeric_filenames = os.listdir(path_to_numeric_csv_dir)
 
@@ -738,18 +882,20 @@ if __name__ == "__main__":
     #separate_month_into_days()
 
     ## Get eval metrics between numeric and manual
-    version = "v28"
-    path_to_numeric_csv_dir = f"./predictions/numeric_csv/original/{version}"
-    path_to_manual_dir = "./dataset/data_scaling_manual/data_raw"
-    path_to_save_prepared_numeric_csv_dir = f"./predictions/numeric_csv/prepared_for_numeric_eval/{version}"
-    path_to_save_prepared_manual_dir = f"./dataset/data_scaling_manual/data_raw/prepared_for_numeric_eval/{version}"
-    ## Preparing numeric and manual
-    #prepare_manual_and_numeric_for_evaluation(path_to_numeric_csv_dir, path_to_manual_dir, path_to_save_prepared_numeric_csv_dir, path_to_save_prepared_manual_dir)
+    #version = "v31"
+    #erase_type = "erase_when_either"
+    #path_to_numeric_csv_dir = f"./predictions/numeric_csv/original/{version}"
+    #path_to_manual_dir = "./dataset/data_scaling_manual/data_raw"
+    #path_to_save_prepared_numeric_csv_dir = f"./predictions/numeric_csv/prepared_for_numeric_eval/{version}/{erase_type}"
+    #path_to_save_prepared_manual_dir = f"./dataset/data_scaling_manual/data_raw/prepared_for_numeric_eval/{version}/{erase_type}"
+    ### Preparing numeric and manual
+    #prepare_manual_and_numeric_for_evaluation_either_null(path_to_numeric_csv_dir, path_to_manual_dir, path_to_save_prepared_numeric_csv_dir, path_to_save_prepared_manual_dir)
 
-    # Getting metrics between model and manual
-    RSE, RMSE, gmin, gmax, grange, MBE, R = get_metrics_all_numeric_with_manual(path_to_save_prepared_numeric_csv_dir, path_to_save_prepared_manual_dir)
-    metrics_all_data = {"RSE": RSE, "RMSE": RMSE, "MIN": gmin, "MAX": gmax, "RANGE": grange, "MBE": MBE, "R": R}
-    pd.Series(metrics_all_data).to_csv(f"./evaluations/{version}/metrics_all_data.csv")
+    ## Getting metrics between model and manual
+    #RSE, RMSE, gmin, gmax, grange, MBE, R = get_metrics_fof2_numeric_with_manual(path_to_save_prepared_numeric_csv_dir, path_to_save_prepared_manual_dir)
+    #metrics_all_data = {"RSE": RSE, "RMSE": RMSE, "MIN": gmin, "MAX": gmax, "RANGE": grange, "MBE": MBE, "R": R}
+    #path_to_save_metrics_all_fof2_csv = f"./evaluations/{version}/{erase_type}/metrics_all_fof2.csv"
+    #pd.Series(metrics_all_data).to_csv(path_to_save_metrics_all_fof2_csv)
 
     # Getting foF2 metrics on all data
     #RSE, RMSE, gmin, gmax, grange, R, MBE = get_metrics_fof2_numeric_with_manual(path_to_save_prepared_numeric_csv_dir, path_to_save_prepared_manual_dir)
@@ -761,3 +907,10 @@ if __name__ == "__main__":
     #path_to_manual_days_dir = "./dataset/data_scaling_manual/data_raw/days"
     #RSE, RMSE, gmin, gmax, grange = get_metrics_all_quickscale_with_manual(path_to_manual_days_dir, path_to_quickscale_dir)
     #print(RSE, RMSE, gmin, gmax, grange)
+
+
+    ########
+    # 2019 manual
+    #separate_month_into_days_2019()
+    create_gaussian_heatmap_mask_from_manual()
+

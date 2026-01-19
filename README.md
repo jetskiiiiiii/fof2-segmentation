@@ -27,7 +27,6 @@ Todo:
     - get numeric of predictions
 - for 09/03
     - fix functions
-        - (DONE) move and rename image/masks (dataset/move_and_rename_data.sh)
         - (DONE) view mask (visualize/plot_image)
         - (DONE) view image (visualize/plot_mask)
         - (DONE) get predictions (inference/get_prediction_tensor)
@@ -45,7 +44,7 @@ Todo:
         - (DONE) use rse
     - (DONE) overlay numeric plot with original image
     - bikin surat permohonan magang dan di tambah di awal proposal
-    - presentation:
+    presentation:
         - (DONE but decided not to put) accuracy vs. loss of new models (20, 21, 22)
         - (DONE) overlay of new models
         - (DONE) example of numeric plot over original
@@ -53,7 +52,7 @@ Todo:
         - (DONE) rse, rmse of quickscale
 - for 09/14
     - (no point) plot manual
-    - (DONE) get dice Coefficient of fpn 
+    - (DONE) get dice Coefficient of fpn
     - (DONE) get metrics similar to quickscale paper (nighttime/daytime/seasonal)
         - per month, time (use single_eval)
         - per season, day/night (use modified all_eval)
@@ -63,6 +62,50 @@ Todo:
         - RMSE, MSE
         - graphs missing 1 month
         - graphs are per month/time?
+- for 9/24
+    - retrain on more parameters, see how tight segments are
+    - provide sample image for website
+    - only get fof2, all data (only count when both have values)
+    - get metric on all models
+        - total
+        - per season
+        - per time
+    because plots and manual are derived differently,
+    part of blame can be on creation of plots,
+    which we have no control over. however, other times
+    there may be a clear indication of a frequency on the
+    plot that the model just didn't capture. due to the nature
+    of segmentation, model only captures what is on plot already.
+    so model can not capture something not there (false positives
+    are entirely plots fault).
+    model +, manual + = plot is good, model is good (but can be plot bad, model bad by halucinating and accidentally getting true positive)
+    model +, manual - = plot is good/bad, model is good/bad (one has to be bad, can't both be bad - both bad means model didn't capture but would register as true negative)
+    model -, manual + = plot is good/bad, model is good/bad (one has to be bad, can not be both bad - both bad means model halucinated but would register as true positive)
+    model -, manual - = plot is good, model is good (but can be plot bad, model bad by not capturing and accidentally getting true negative)
+    ultimately, we don't count false positive/negative as
+    could be fault of plot, complicated to tell.
+    we also don't count true negatives as the absence of frequencies
+    dont necessarily mean frequency is 0 at that time. so we don't
+    have a value to compare at those times.
+    - presentation
+        - introduction
+            - goal/purpose
+            - alternative methods
+        - methods
+            - dataset and preparation
+            - models, strengths
+            - process of getting numeric
+        - results
+            - training results
+            - metrics against manual
+        - discussion
+            - models and encoders that worked best
+            - future work
+- for 1/19
+    - train on all 2019-some 2020, test on remaining 2020
+    - use manuals as annotations
+    - train with 3 encoders (for each encoder, keep size same across decoders)
+
 
 Notes:
 - losses
@@ -95,22 +138,20 @@ Notes:
     - v26: unet, resized images, 2019 only, 10 Es, f1
     - v27: deeplab, resized images, 2019 only, 10 Es, f1
     - v28: fpn, resized images, 2019 only, 10 Es, f1
+    - v29: fpn, resized images, 2019 only, 10 Es, f1, efficientnet-b6
+    - v30: deeplab, resized images, 2019 only, 10 Es, f1, efficientnet-b2
+    - v31: unet, resized images, 2019 only, 10 Es, f1, efficientnet-b6
+    - v32: unet, 2019 only, manual masks
 - post pipeline:
-    1. predict (inference.py)
-    2. get mask and overlay (inference.py)
-    3. get numeric from mask (get_numeric.py)
-    4. prepare manual/numeric (need both because dependent on empty cells from both) (eval_with_manual.py)
-    5. get rse, rmse (eval_with_manual.py)
-- numeric from predictions: the predicted mask has no concept of time.
-    so what is the best way to get data "every 15 minutes"? we could 
-    get a linspace of 0-24 (total 96) and then scale it up to the dims of the mask,
-    but what we chose to do was simply get a linspace of 0-mask_dim (total 96).
+    - predict (inference.py)
+    - get mask and overlay (inference.py)
+    - get numeric from mask (get_numeric.py)
+    - prepare manual/numeric (need both because dependent on empty cells from both) (eval_with_manual.py)
+    - get rse, rmse (eval_with_manual.py)
+    - get specific case metrics (eval_for_paper.py)
+- numeric from predictions: the predicted mask has no concept of time. so what is the best way to get data "every 15 minutes"? we could get a linspace of 0-24 (total 96) and then scale it up to the dims of the mask, but what we chose to do was simply get a linspace of 0-mask_dim (total 96).
 - quickscale: since time for each fmin/foF2 is different, we will merge_asof fmin/foF2 separately
-    - comparing with manual will be on different times
-    because numeric has gaps but qs doesn't, so only filtering based on manual.
-    this shouldn't be a problem because we only want overall accuracy,
-    not accuracy on specific time
-
+    - comparing with manual will be on different times because numeric has gaps but qs doesn't, so only filtering based on manual. this shouldn't be a problem because we only want overall accuracy, not accuracy on specific time
 
 Concerns:
 - what to do with fmin without fof2?

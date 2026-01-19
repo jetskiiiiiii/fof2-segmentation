@@ -13,25 +13,10 @@ Transformation inspired by https://albumentations.ai/docs/examples/example-kaggl
 """
 train_transformation = A.Compose([
     A.Crop(x_min=original_x_min, x_max=original_x_max, y_min=original_y_min, y_max=original_y_max), # Based on trial and error
-    #A.PadIfNeeded(min_height=TARGET_DIMS, min_width=TARGET_DIMS, p=1),
-
-    A.D4(p=1),
-
-    # Not needed if applying D4
-   # A.OneOf(
-   #     [
-   #         A.HorizontalFlip(p=0.5),
-   #         A.VerticalFlip(p=0.5),
-   #         A.RandomRotate90(p=0.5),
-   #         A.Transpose(p=0.5),
-   #     ],
-   #     p=0.9,
-   # ),
-
-
     A.OneOf(
         [
-            A.ElasticTransform(p=0.5, alpha=120, sigma=120 * 0.05),
+            A.HorizontalFlip(p=0.5),
+            A.ElasticTransform(p=0.5, alpha=30, sigma=120 * 0.05),
             A.GridDistortion(p=0.5),
             A.OpticalDistortion(distort_limit=2, p=0.5),
             A.RandomSizedCrop(min_max_height=(100, 400), size=(original_height, original_width), p=0.5),
@@ -45,11 +30,36 @@ train_transformation = A.Compose([
     A.Resize(height=TARGET_DIMS, width=TARGET_DIMS),
 ])
 
+# Created masks are already 640, but images are not
+# Transformations are applied to both images and masks at the same time
+train_transformation_no_split = A.Compose([
+    A.OneOf(
+        [
+            A.HorizontalFlip(p=0.5),
+            A.ElasticTransform(p=0.5, alpha=30, sigma=120 * 0.05),
+            A.GridDistortion(p=0.5),
+            A.OpticalDistortion(distort_limit=2, p=0.5),
+            A.RandomSizedCrop(min_max_height=(100, 400), size=(original_height, original_width), p=0.5),
+        ],
+        p=0.9,
+    ),
+
+    A.CLAHE(p=0.8),
+    A.RandomBrightnessContrast(p=0.8),
+    A.RandomGamma(p=0.8),
+    A.Resize(height=TARGET_DIMS, width=TARGET_DIMS),
+], is_check_shapes=False)
+
 eval_transformation = A.Compose([
     A.Crop(x_min=original_x_min, x_max=original_x_max, y_min=original_y_min, y_max=original_y_max), # Based on trial and error
     #A.PadIfNeeded(min_height=TARGET_DIMS, min_width=TARGET_DIMS, p=1),
     A.Resize(height=TARGET_DIMS, width=TARGET_DIMS),
 ])
+
+# Transformation of masks on non-split data
+eval_transformation_no_split = A.Compose([
+    A.Resize(height=TARGET_DIMS, width=TARGET_DIMS),
+], is_check_shapes=False)
 
 if __name__ == "__main__":
     path_to_image = f"./dataset/test/test_images/FTIF_LTPMP-1-Apr-2019.jpg"
